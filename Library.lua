@@ -7113,10 +7113,11 @@ function Library:CreateWindow(WindowInfo)
             })
 
             local GroupboxHolder
-            local GroupboxLabel
+			local GroupboxLabel
+			local HeaderButton
 
-            local GroupboxContainer
-            local GroupboxList
+			local GroupboxContainer
+			local GroupboxList
 
             do
                 GroupboxHolder = New("Frame", {
@@ -7161,7 +7162,7 @@ function Library:CreateWindow(WindowInfo)
                     Parent = GroupboxHolder,
                 })
 	
-				local HeaderButton = New("TextButton", {
+				HeaderButton = New("TextButton", {
     			BackgroundTransparency = 1,
     			Text = "",
     			Size = UDim2.new(1, 0, 0, 34),
