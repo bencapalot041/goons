@@ -7165,10 +7165,13 @@ function Library:CreateWindow(WindowInfo)
 				HeaderButton = New("TextButton", {
     			BackgroundTransparency = 1,
     			Text = "",
+    			AutoButtonColor = false,
+
     			Size = UDim2.new(1, 0, 0, 34),
-   				Position = UDim2.fromOffset(0, 0),
+    			Position = UDim2.fromOffset(0, 0),
+
+    			ZIndex = 100, -- force above visuals
     			Parent = GroupboxHolder,
-    			ZIndex = GroupboxLabel.ZIndex + 1,
 				})
 	
                 New("UIPadding", {
@@ -7220,19 +7223,19 @@ function Library:CreateWindow(WindowInfo)
         	and 0
         	or GroupboxList.AbsoluteContentSize.Y
 
-    		GroupboxContainer.Visible = not Groupbox.Collapsed
-
-   	 		GroupboxHolder.Size = UDim2.new(
-        	1,
-        	0,
-        	0,
+    		GroupboxHolder.Size = UDim2.new(
+        	1, 0, 0,
         	(contentHeight + HEADER_HEIGHT) * Library.DPIScale
     		)
 			end
 
+			function Groupbox:Resize()
+    		task.defer(ResizeGroupbox)
+			end
+
 			function Groupbox:Toggle()
     		Groupbox.Collapsed = not Groupbox.Collapsed
-    		ResizeGroupbox()
+    		Groupbox:Resize()
 			end
 
 			GroupboxList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
@@ -7247,15 +7250,32 @@ function Library:CreateWindow(WindowInfo)
     		Groupbox.Collapsed = not Groupbox.Collapsed
     		Groupbox:Resize()
 			end
+
+			-- STEP 4: disable input on decorative header visuals
+for _, child in ipairs(GroupboxHolder:GetChildren()) do
+    if child ~= HeaderButton then
+        if child:IsA("Frame")
+        or child:IsA("ImageLabel")
+        or child:IsA("TextLabel") then
+            child.Active = false
+        end
+    end
+end
+
+
          	HeaderButton.MouseButton1Click:Connect(function()
     		Groupbox:Toggle()
 		end)
-
+			
 			GroupboxList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     		if not Groupbox.Collapsed then
         	Groupbox:Resize()
     		end
 		end)
+
+Groupbox:Resize()
+Tab.Groupboxes[Info.Name] = Groupbox
+return Groupbox
 
             setmetatable(Groupbox, BaseGroupbox)
 
