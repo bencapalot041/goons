@@ -7160,6 +7160,7 @@ function Library:CreateWindow(WindowInfo)
                     TextXAlignment = Enum.TextXAlignment.Left,
                     Parent = GroupboxHolder,
                 })
+	
 				local HeaderButton = New("TextButton", {
     			BackgroundTransparency = 1,
     			Text = "",
@@ -7168,6 +7169,7 @@ function Library:CreateWindow(WindowInfo)
     			Parent = GroupboxHolder,
     			ZIndex = GroupboxLabel.ZIndex + 1,
 				})
+	
                 New("UIPadding", {
                     PaddingLeft = UDim.new(0, 12),
                     PaddingRight = UDim.new(0, 12),
@@ -7204,7 +7206,7 @@ function Library:CreateWindow(WindowInfo)
     		Elements = {},
 
     		Collapsed = false,
-				}
+			}
 			
 			HeaderButton.MouseButton1Click:Connect(function()
     			Groupbox:Toggle()
@@ -7239,6 +7241,20 @@ function Library:CreateWindow(WindowInfo)
 		end)
 
             function Groupbox:Resize() task.defer(ResizeGroupbox) end
+
+			function Groupbox:Toggle()
+    		Groupbox.Collapsed = not Groupbox.Collapsed
+    		Groupbox:Resize()
+			end
+         	HeaderButton.MouseButton1Click:Connect(function()
+    		Groupbox:Toggle()
+		end)
+
+			GroupboxList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    		if not Groupbox.Collapsed then
+        	Groupbox:Resize()
+    		end
+		end)
 
             setmetatable(Groupbox, BaseGroupbox)
 
