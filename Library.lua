@@ -7160,6 +7160,14 @@ function Library:CreateWindow(WindowInfo)
                     TextXAlignment = Enum.TextXAlignment.Left,
                     Parent = GroupboxHolder,
                 })
+				local HeaderButton = New("TextButton", {
+    			BackgroundTransparency = 1,
+    			Text = "",
+    			Size = UDim2.new(1, 0, 0, 34),
+   				Position = UDim2.fromOffset(0, 0),
+    			Parent = GroupboxHolder,
+    			ZIndex = GroupboxLabel.ZIndex + 1,
+				})
                 New("UIPadding", {
                     PaddingLeft = UDim.new(0, 12),
                     PaddingRight = UDim.new(0, 12),
@@ -7187,18 +7195,48 @@ function Library:CreateWindow(WindowInfo)
             end
 
             local Groupbox = {
-                BoxHolder = BoxHolder,
-                Holder = GroupboxHolder,
-                Container = GroupboxContainer,
+    		BoxHolder = BoxHolder,
+    		Holder = GroupboxHolder,
+    		Container = GroupboxContainer,
 
-                Tab = Tab,
-                DependencyBoxes = {},
-                Elements = {},
-            }
+    		Tab = Tab,
+    		DependencyBoxes = {},
+    		Elements = {},
 
-            local function ResizeGroupbox()
-                GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y + 53) * Library.DPIScale)
-            end
+    		Collapsed = false,
+				}
+			
+			HeaderButton.MouseButton1Click:Connect(function()
+    			Groupbox:Toggle()
+				end)
+
+            local HEADER_HEIGHT = 53
+
+			local function ResizeGroupbox()
+    		local contentHeight = Groupbox.Collapsed
+        	and 0
+        	or GroupboxList.AbsoluteContentSize.Y
+
+    		GroupboxContainer.Visible = not Groupbox.Collapsed
+
+   	 		GroupboxHolder.Size = UDim2.new(
+        	1,
+        	0,
+        	0,
+        	(contentHeight + HEADER_HEIGHT) * Library.DPIScale
+    		)
+			end
+
+			function Groupbox:Toggle()
+    		Groupbox.Collapsed = not Groupbox.Collapsed
+    		ResizeGroupbox()
+			end
+
+			GroupboxList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    		if not Groupbox.Collapsed then
+        	ResizeGroupbox()
+    		end
+		end)
 
             function Groupbox:Resize() task.defer(ResizeGroupbox) end
 
