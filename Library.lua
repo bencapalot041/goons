@@ -7212,7 +7212,7 @@ function Library:CreateWindow(WindowInfo)
 			HeaderButton.MouseButton1Click:Connect(function()
     			Groupbox:Toggle()
 				end)
-
+			warn("TOGGLE FIRED", Info.Name)
             local HEADER_HEIGHT = 53
 
 			local function ResizeGroupbox()
