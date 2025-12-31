@@ -180,7 +180,7 @@ local Library = {
     Options = Options,
 
     NotifySide = "Right",
-    ShowCustomCursor = false,
+    ShowCustomCursor = true,
     ForceCheckbox = false,
     ShowToggleFrameInKeybinds = true,
     NotifyOnError = false,
@@ -291,7 +291,7 @@ local Templates = {
         GlobalSearch = false,
         CornerRadius = 4,
         NotifySide = "Right",
-        ShowCustomCursor = false,
+        ShowCustomCursor = true,
         Font = Enum.Font.Code,
         ToggleKeybind = Enum.KeyCode.RightControl,
         MobileButtonsSide = "Left",
@@ -1090,10 +1090,9 @@ local ModalElement = New("TextButton", {
     Parent = ScreenGui,
 })
 
---// Cursor (DISABLED)
+--// Cursor
+local Cursor
 do
-    return
-
     Cursor = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "WhiteColor",
@@ -1127,6 +1126,7 @@ do
         Parent = CursorV,
     })
 end
+
 --// Notification
 local NotificationArea
 local NotificationList
