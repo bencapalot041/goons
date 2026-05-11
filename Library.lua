@@ -311,7 +311,7 @@ local Templates = {
         CompactWidthActivation = 128,
     },
     Toggle = {
-        Text = "Toggle",
+        Text = "Holy",
         Default = false,
 
         Callback = function() end,
