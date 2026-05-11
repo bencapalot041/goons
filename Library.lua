@@ -297,7 +297,7 @@ local Templates = {
         MobileButtonsSide = "Left",
         UnlockMouseWhileOpen = true,
 
-        EnableSidebarResize = true,
+        EnableSidebarResize = false,
         EnableCompacting = true,
         DisableCompactingSnap = false,
         SidebarCompacted = false,
