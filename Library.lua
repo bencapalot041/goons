@@ -7351,7 +7351,7 @@ function Library:CreateWindow(WindowInfo)
     if Library.IsMobile then
         local ToggleButton = Library:AddDraggableButton("Holy", function()
             Library:Toggle()
-        end, true) end
+        end, true) end)
 
     --// Execution \\--
     SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
