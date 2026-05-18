@@ -7346,17 +7346,20 @@ function Library:CreateWindow(WindowInfo)
             })
 
             local GroupboxHolder
-            local GroupboxLabel
+			local GroupboxLabel
+			local GroupboxHeaderButton
+			local GroupboxCollapseArrow
 
-            local GroupboxContainer
-            local GroupboxList
+			local GroupboxContainer
+			local GroupboxList
 
             do
                 GroupboxHolder = New("Frame", {
-                    BackgroundColor3 = "BackgroundColor",
-                    Size = UDim2.fromScale(1, 0),
-                    Parent = BoxHolder,
-                })
+    BackgroundColor3 = "BackgroundColor",
+    ClipsDescendants = Info.Collapsible == true,
+    Size = UDim2.fromScale(1, 0),
+    Parent = BoxHolder,
+})
                 table.insert(
                     Library.Corners,
                     New("UICorner", {
@@ -7399,6 +7402,31 @@ function Library:CreateWindow(WindowInfo)
                     Parent = GroupboxLabel,
                 })
 
+				if Info.Collapsible == true then
+
+    GroupboxHeaderButton = New("TextButton", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(0, 0),
+        Size = UDim2.new(1, 0, 0, 34),
+        Text = "",
+        AutoButtonColor = false,
+        ZIndex = GroupboxLabel.ZIndex + 1,
+        Parent = GroupboxHolder,
+    })
+
+    GroupboxCollapseArrow = New("TextLabel", {
+        AnchorPoint = Vector2.new(1, 0),
+        BackgroundTransparency = 1,
+        Position = UDim2.new(1, -10, 0, 0),
+        Size = UDim2.fromOffset(18, 34),
+        Text = "v",
+        TextSize = 15,
+        TextTransparency = 0.35,
+        ZIndex = GroupboxHeaderButton.ZIndex + 1,
+        Parent = GroupboxHeaderButton,
+    })
+end
+
                 GroupboxContainer = New("Frame", {
                     BackgroundTransparency = 1,
                     Position = UDim2.fromOffset(0, 35),
@@ -7420,18 +7448,98 @@ function Library:CreateWindow(WindowInfo)
             end
 
             local Groupbox = {
-                BoxHolder = BoxHolder,
-                Holder = GroupboxHolder,
-                Container = GroupboxContainer,
+    BoxHolder = BoxHolder,
+    Holder = GroupboxHolder,
+    HeaderButton = GroupboxHeaderButton,
+    CollapseArrow = GroupboxCollapseArrow,
+    Container = GroupboxContainer,
 
-                Tab = Tab,
-                DependencyBoxes = {},
-                Elements = {},
-            }
+    Tab = Tab,
+    DependencyBoxes = {},
+    Elements = {},
+
+    Collapsible = Info.Collapsible == true,
+    Collapsed = Info.Collapsed == true,
+}
 
             function Groupbox:Resize()
-                GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+
+    if Groupbox.Collapsible
+    and Groupbox.Collapsed then
+
+        GroupboxContainer.Visible = false
+
+        GroupboxHolder.Size =
+            UDim2.new(
+                1,
+                0,
+                0,
+                35
+            )
+
+        if GroupboxCollapseArrow then
+            GroupboxCollapseArrow.Text = ">"
+        end
+
+        return
+    end
+
+    GroupboxContainer.Visible = true
+
+    GroupboxHolder.Size =
+        UDim2.new(
+            1,
+            0,
+            0,
+            (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49
+        )
+
+    if GroupboxCollapseArrow then
+        GroupboxCollapseArrow.Text = "v"
+    end
+end
+
+function Groupbox:SetCollapsed(State)
+
+    if not Groupbox.Collapsible then
+        return
+    end
+
+    Groupbox.Collapsed =
+        State == true
+
+    Groupbox:Resize()
+
+    if Tab
+    and type(Tab.RefreshSides) == "function" then
+        task.defer(function()
+
+            if Tab
+            and type(Tab.RefreshSides) == "function" then
+                Tab:RefreshSides()
             end
+        end)
+    end
+end
+
+function Groupbox:ToggleCollapsed()
+
+    Groupbox:SetCollapsed(
+        not Groupbox.Collapsed
+    )
+end
+
+if GroupboxHeaderButton then
+
+    GroupboxHeaderButton.MouseButton1Click:Connect(function()
+
+        if not Groupbox.Collapsible then
+            return
+        end
+
+        Groupbox:ToggleCollapsed()
+    end)
+end
 
             setmetatable(Groupbox, BaseGroupbox)
 
@@ -7448,6 +7556,28 @@ function Library:CreateWindow(WindowInfo)
         function Tab:AddRightGroupbox(Name, IconName)
             return Tab:AddGroupbox({ Side = 2, Name = Name, IconName = IconName })
         end
+
+		function Tab:AddLeftCollapsibleGroupbox(Name, IconName, DefaultOpen)
+
+    return Tab:AddGroupbox({
+        Side = 1,
+        Name = Name,
+        IconName = IconName,
+        Collapsible = true,
+        Collapsed = DefaultOpen == false,
+    })
+end
+
+function Tab:AddRightCollapsibleGroupbox(Name, IconName, DefaultOpen)
+
+    return Tab:AddGroupbox({
+        Side = 2,
+        Name = Name,
+        IconName = IconName,
+        Collapsible = true,
+        Collapsed = DefaultOpen == false,
+    })
+end
 
         function Tab:AddTabbox(Info)
             local BoxHolder = New("Frame", {
