@@ -775,6 +775,13 @@ local function ApplySearchToTab(Tab, Search)
     end
 
     for _, Tabbox in Tab.Tabboxes do
+		if Tabbox.Dependencies
+and #Tabbox.Dependencies > 0
+and Tabbox.Visible == false then
+
+    Tabbox.BoxHolder.Visible = false
+    continue
+end
         local VisibleTabs = 0
         local VisibleElements = {}
 
@@ -895,10 +902,18 @@ local function ResetTab(Tab)
             SubTab.ButtonHolder.Visible = true
         end
 
-        if Tabbox.ActiveTab then
-            Tabbox.ActiveTab:Resize()
-        end
-        Tabbox.BoxHolder.Visible = true
+        if Tabbox.Visible == false then
+
+    Tabbox.BoxHolder.Visible = false
+
+else
+
+    if Tabbox.ActiveTab then
+        Tabbox.ActiveTab:Resize()
+    end
+
+    Tabbox.BoxHolder.Visible = true
+end
     end
 end
 
@@ -7498,13 +7513,138 @@ function Library:CreateWindow(WindowInfo)
 
             local TotalButtons, TotalTabs = 0, 1
             local Tabbox = {
-                ActiveTab = nil,
+    		BoxHolder = BoxHolder,
+    		Holder = TabboxHolder,
+    		Buttons = TabboxButtons,
 
-                BoxHolder = BoxHolder,
-                Holder = TabboxHolder,
-                Tabs = {}
-            }
+    		Tabs = {},
+    		ActiveTab = nil,
 
+    		Visible = true,
+    		Dependencies = {},
+
+    		Type = "Tabbox",
+			}
+			function Tabbox:Resize()
+    if Tabbox.ActiveTab then
+        Tabbox.ActiveTab:Resize()
+    end
+end
+
+function Tabbox:Update(CancelSearch)
+
+    for _, Dependency in Tabbox.Dependencies do
+
+        local Element =
+            Dependency[1]
+
+        local ExpectedValue =
+            Dependency[2]
+
+        if Element.Type == "Toggle" then
+
+            if Element.Value ~= ExpectedValue then
+
+                Tabbox.Visible = false
+                BoxHolder.Visible = false
+
+                if Tab and type(Tab.RefreshSides) == "function" then
+                    task.defer(function()
+                        Tab:RefreshSides()
+                    end)
+                end
+
+                return
+            end
+
+        elseif Element.Type == "Dropdown" then
+
+            if typeof(Element.Value) == "table" then
+
+                if not Element.Value[ExpectedValue] then
+
+                    Tabbox.Visible = false
+                    BoxHolder.Visible = false
+
+                    if Tab and type(Tab.RefreshSides) == "function" then
+                        task.defer(function()
+                            Tab:RefreshSides()
+                        end)
+                    end
+
+                    return
+                end
+
+            else
+
+                if Element.Value ~= ExpectedValue then
+
+                    Tabbox.Visible = false
+                    BoxHolder.Visible = false
+
+                    if Tab and type(Tab.RefreshSides) == "function" then
+                        task.defer(function()
+                            Tab:RefreshSides()
+                        end)
+                    end
+
+                    return
+                end
+            end
+        end
+    end
+
+    Tabbox.Visible = true
+
+    if not Library.Searching then
+
+        BoxHolder.Visible = true
+
+        if Tabbox.ActiveTab then
+            Tabbox.ActiveTab:Resize()
+        end
+
+        if Tab and type(Tab.RefreshSides) == "function" then
+            task.defer(function()
+                Tab:RefreshSides()
+            end)
+        end
+
+    elseif not CancelSearch then
+
+        Library:UpdateSearch(Library.SearchText)
+    end
+end
+
+function Tabbox:SetupDependencies(Dependencies)
+
+    for _, Dependency in Dependencies do
+
+        assert(
+            typeof(Dependency) == "table",
+            "Dependency should be a table."
+        )
+
+        assert(
+            Dependency[1] ~= nil,
+            "Dependency is missing element."
+        )
+
+        assert(
+            Dependency[2] ~= nil,
+            "Dependency is missing expected value."
+        )
+    end
+
+    Tabbox.Dependencies = Dependencies
+
+    Tabbox:Update()
+end
+
+table.insert(
+    Library.DependencyBoxes,
+    Tabbox
+)
             function Tabbox:UpdateCorners()
                 for _, Tab in Tabbox.Tabs do
                     Tab:UpdateCorners()
