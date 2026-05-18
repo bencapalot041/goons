@@ -775,13 +775,6 @@ local function ApplySearchToTab(Tab, Search)
     end
 
     for _, Tabbox in Tab.Tabboxes do
-		if Tabbox.Dependencies
-and #Tabbox.Dependencies > 0
-and Tabbox.Visible == false then
-
-    Tabbox.BoxHolder.Visible = false
-    continue
-end
         local VisibleTabs = 0
         local VisibleElements = {}
 
@@ -902,18 +895,10 @@ local function ResetTab(Tab)
             SubTab.ButtonHolder.Visible = true
         end
 
-        if Tabbox.Visible == false then
-
-    Tabbox.BoxHolder.Visible = false
-
-else
-
-    if Tabbox.ActiveTab then
-        Tabbox.ActiveTab:Resize()
-    end
-
-    Tabbox.BoxHolder.Visible = true
-end
+        if Tabbox.ActiveTab then
+            Tabbox.ActiveTab:Resize()
+        end
+        Tabbox.BoxHolder.Visible = true
     end
 end
 
@@ -7399,37 +7384,20 @@ function Library:CreateWindow(WindowInfo)
                     })
                 end
 
-                local HeaderButton =
-    New("TextButton", {
-        BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(0, 0),
-        Size = UDim2.new(1, 0, 0, 34),
-        Text = "",
-        AutoButtonColor = false,
-        Parent = GroupboxHolder,
-    })
-
-GroupboxLabel = New("TextLabel", {
-    BackgroundTransparency = 1,
-    Position = UDim2.fromOffset(BoxIcon and 24 or 0, 0),
-    Size = UDim2.new(1, -28, 0, 34),
-    Text = Info.Name,
-    TextSize = 15,
-    TextXAlignment = Enum.TextXAlignment.Left,
-    Parent = HeaderButton,
-})
-
-local CollapseArrow =
-    New("TextLabel", {
-        AnchorPoint = Vector2.new(1, 0),
-        BackgroundTransparency = 1,
-        Position = UDim2.new(1, -8, 0, 0),
-        Size = UDim2.fromOffset(18, 34),
-        Text = "⌄",
-        TextSize = 16,
-        TextTransparency = 0.35,
-        Parent = HeaderButton,
-    })
+                GroupboxLabel = New("TextLabel", {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.fromOffset(BoxIcon and 24 or 0, 0),
+                    Size = UDim2.new(1, 0, 0, 34),
+                    Text = Info.Name,
+                    TextSize = 15,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Parent = GroupboxHolder,
+                })
+                New("UIPadding", {
+                    PaddingLeft = UDim.new(0, 12),
+                    PaddingRight = UDim.new(0, 12),
+                    Parent = GroupboxLabel,
+                })
 
                 GroupboxContainer = New("Frame", {
                     BackgroundTransparency = 1,
@@ -7452,87 +7420,18 @@ local CollapseArrow =
             end
 
             local Groupbox = {
-    BoxHolder = BoxHolder,
-    Holder = GroupboxHolder,
-    Header = HeaderButton,
-    Label = GroupboxLabel,
-    Container = GroupboxContainer,
+                BoxHolder = BoxHolder,
+                Holder = GroupboxHolder,
+                Container = GroupboxContainer,
 
-    Tab = Tab,
-    DependencyBoxes = {},
-    Elements = {},
-
-    Collapsible = Info.Collapsible == true,
-    Collapsed = Info.Collapsed == true,
-}
+                Tab = Tab,
+                DependencyBoxes = {},
+                Elements = {},
+            }
 
             function Groupbox:Resize()
-
-    if Groupbox.Collapsible
-    and Groupbox.Collapsed then
-
-        GroupboxContainer.Visible = false
-
-        GroupboxHolder.Size =
-            UDim2.new(
-                1,
-                0,
-                0,
-                35
-            )
-
-        CollapseArrow.Text = "›"
-
-        return
-    end
-
-    GroupboxContainer.Visible = true
-
-    GroupboxHolder.Size =
-        UDim2.new(
-            1,
-            0,
-            0,
-            (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49
-        )
-
-    CollapseArrow.Text = "⌄"
-end
-
-function Groupbox:SetCollapsed(state)
-
-    if not Groupbox.Collapsible then
-        return
-    end
-
-    Groupbox.Collapsed =
-        state == true
-
-    Groupbox:Resize()
-
-    if Tab
-    and type(Tab.RefreshSides) == "function" then
-        task.defer(function()
-            Tab:RefreshSides()
-        end)
-    end
-end
-
-function Groupbox:ToggleCollapsed()
-
-    Groupbox:SetCollapsed(
-        not Groupbox.Collapsed
-    )
-end
-
-HeaderButton.MouseButton1Click:Connect(function()
-
-    if not Groupbox.Collapsible then
-        return
-    end
-
-    Groupbox:ToggleCollapsed()
-end)
+                GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+            end
 
             setmetatable(Groupbox, BaseGroupbox)
 
@@ -7550,25 +7449,6 @@ end)
             return Tab:AddGroupbox({ Side = 2, Name = Name, IconName = IconName })
         end
 
-		function Tab:AddLeftCollapsibleGroupbox(Name, IconName, DefaultOpen)
-    return Tab:AddGroupbox({
-        Side = 1,
-        Name = Name,
-        IconName = IconName,
-        Collapsible = true,
-        Collapsed = DefaultOpen == false,
-    })
-end
-
-function Tab:AddRightCollapsibleGroupbox(Name, IconName, DefaultOpen)
-    return Tab:AddGroupbox({
-        Side = 2,
-        Name = Name,
-        IconName = IconName,
-        Collapsible = true,
-        Collapsed = DefaultOpen == false,
-    })
-end
         function Tab:AddTabbox(Info)
             local BoxHolder = New("Frame", {
                 AutomaticSize = Enum.AutomaticSize.Y,
@@ -7618,138 +7498,13 @@ end
 
             local TotalButtons, TotalTabs = 0, 1
             local Tabbox = {
-    		BoxHolder = BoxHolder,
-    		Holder = TabboxHolder,
-    		Buttons = TabboxButtons,
+                ActiveTab = nil,
 
-    		Tabs = {},
-    		ActiveTab = nil,
+                BoxHolder = BoxHolder,
+                Holder = TabboxHolder,
+                Tabs = {}
+            }
 
-    		Visible = true,
-    		Dependencies = {},
-
-    		Type = "Tabbox",
-			}
-			function Tabbox:Resize()
-    if Tabbox.ActiveTab then
-        Tabbox.ActiveTab:Resize()
-    end
-end
-
-function Tabbox:Update(CancelSearch)
-
-    for _, Dependency in Tabbox.Dependencies do
-
-        local Element =
-            Dependency[1]
-
-        local ExpectedValue =
-            Dependency[2]
-
-        if Element.Type == "Toggle" then
-
-            if Element.Value ~= ExpectedValue then
-
-                Tabbox.Visible = false
-                BoxHolder.Visible = false
-
-                if Tab and type(Tab.RefreshSides) == "function" then
-                    task.defer(function()
-                        Tab:RefreshSides()
-                    end)
-                end
-
-                return
-            end
-
-        elseif Element.Type == "Dropdown" then
-
-            if typeof(Element.Value) == "table" then
-
-                if not Element.Value[ExpectedValue] then
-
-                    Tabbox.Visible = false
-                    BoxHolder.Visible = false
-
-                    if Tab and type(Tab.RefreshSides) == "function" then
-                        task.defer(function()
-                            Tab:RefreshSides()
-                        end)
-                    end
-
-                    return
-                end
-
-            else
-
-                if Element.Value ~= ExpectedValue then
-
-                    Tabbox.Visible = false
-                    BoxHolder.Visible = false
-
-                    if Tab and type(Tab.RefreshSides) == "function" then
-                        task.defer(function()
-                            Tab:RefreshSides()
-                        end)
-                    end
-
-                    return
-                end
-            end
-        end
-    end
-
-    Tabbox.Visible = true
-
-    if not Library.Searching then
-
-        BoxHolder.Visible = true
-
-        if Tabbox.ActiveTab then
-            Tabbox.ActiveTab:Resize()
-        end
-
-        if Tab and type(Tab.RefreshSides) == "function" then
-            task.defer(function()
-                Tab:RefreshSides()
-            end)
-        end
-
-    elseif not CancelSearch then
-
-        Library:UpdateSearch(Library.SearchText)
-    end
-end
-
-function Tabbox:SetupDependencies(Dependencies)
-
-    for _, Dependency in Dependencies do
-
-        assert(
-            typeof(Dependency) == "table",
-            "Dependency should be a table."
-        )
-
-        assert(
-            Dependency[1] ~= nil,
-            "Dependency is missing element."
-        )
-
-        assert(
-            Dependency[2] ~= nil,
-            "Dependency is missing expected value."
-        )
-    end
-
-    Tabbox.Dependencies = Dependencies
-
-    Tabbox:Update()
-end
-
-table.insert(
-    Library.DependencyBoxes,
-    Tabbox
-)
             function Tabbox:UpdateCorners()
                 for _, Tab in Tabbox.Tabs do
                     Tab:UpdateCorners()
