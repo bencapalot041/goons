@@ -7399,20 +7399,37 @@ function Library:CreateWindow(WindowInfo)
                     })
                 end
 
-                GroupboxLabel = New("TextLabel", {
-                    BackgroundTransparency = 1,
-                    Position = UDim2.fromOffset(BoxIcon and 24 or 0, 0),
-                    Size = UDim2.new(1, 0, 0, 34),
-                    Text = Info.Name,
-                    TextSize = 15,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    Parent = GroupboxHolder,
-                })
-                New("UIPadding", {
-                    PaddingLeft = UDim.new(0, 12),
-                    PaddingRight = UDim.new(0, 12),
-                    Parent = GroupboxLabel,
-                })
+                local HeaderButton =
+    New("TextButton", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(0, 0),
+        Size = UDim2.new(1, 0, 0, 34),
+        Text = "",
+        AutoButtonColor = false,
+        Parent = GroupboxHolder,
+    })
+
+GroupboxLabel = New("TextLabel", {
+    BackgroundTransparency = 1,
+    Position = UDim2.fromOffset(BoxIcon and 24 or 0, 0),
+    Size = UDim2.new(1, -28, 0, 34),
+    Text = Info.Name,
+    TextSize = 15,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Parent = HeaderButton,
+})
+
+local CollapseArrow =
+    New("TextLabel", {
+        AnchorPoint = Vector2.new(1, 0),
+        BackgroundTransparency = 1,
+        Position = UDim2.new(1, -8, 0, 0),
+        Size = UDim2.fromOffset(18, 34),
+        Text = "⌄",
+        TextSize = 16,
+        TextTransparency = 0.35,
+        Parent = HeaderButton,
+    })
 
                 GroupboxContainer = New("Frame", {
                     BackgroundTransparency = 1,
@@ -7435,18 +7452,87 @@ function Library:CreateWindow(WindowInfo)
             end
 
             local Groupbox = {
-                BoxHolder = BoxHolder,
-                Holder = GroupboxHolder,
-                Container = GroupboxContainer,
+    BoxHolder = BoxHolder,
+    Holder = GroupboxHolder,
+    Header = HeaderButton,
+    Label = GroupboxLabel,
+    Container = GroupboxContainer,
 
-                Tab = Tab,
-                DependencyBoxes = {},
-                Elements = {},
-            }
+    Tab = Tab,
+    DependencyBoxes = {},
+    Elements = {},
+
+    Collapsible = Info.Collapsible == true,
+    Collapsed = Info.Collapsed == true,
+}
 
             function Groupbox:Resize()
-                GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
-            end
+
+    if Groupbox.Collapsible
+    and Groupbox.Collapsed then
+
+        GroupboxContainer.Visible = false
+
+        GroupboxHolder.Size =
+            UDim2.new(
+                1,
+                0,
+                0,
+                35
+            )
+
+        CollapseArrow.Text = "›"
+
+        return
+    end
+
+    GroupboxContainer.Visible = true
+
+    GroupboxHolder.Size =
+        UDim2.new(
+            1,
+            0,
+            0,
+            (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49
+        )
+
+    CollapseArrow.Text = "⌄"
+end
+
+function Groupbox:SetCollapsed(state)
+
+    if not Groupbox.Collapsible then
+        return
+    end
+
+    Groupbox.Collapsed =
+        state == true
+
+    Groupbox:Resize()
+
+    if Tab
+    and type(Tab.RefreshSides) == "function" then
+        task.defer(function()
+            Tab:RefreshSides()
+        end)
+    end
+end
+
+function Groupbox:ToggleCollapsed()
+
+    Groupbox:SetCollapsed(
+        not Groupbox.Collapsed
+    )
+end
+
+HeaderButton.MouseButton1Click:Connect(function()
+
+    if not Groupbox.Collapsible then
+        return
+    end
+
+    Groupbox:ToggleCollapsed()
+end)
 
             setmetatable(Groupbox, BaseGroupbox)
 
@@ -7464,6 +7550,25 @@ function Library:CreateWindow(WindowInfo)
             return Tab:AddGroupbox({ Side = 2, Name = Name, IconName = IconName })
         end
 
+		function Tab:AddLeftCollapsibleGroupbox(Name, IconName, DefaultOpen)
+    return Tab:AddGroupbox({
+        Side = 1,
+        Name = Name,
+        IconName = IconName,
+        Collapsible = true,
+        Collapsed = DefaultOpen == false,
+    })
+end
+
+function Tab:AddRightCollapsibleGroupbox(Name, IconName, DefaultOpen)
+    return Tab:AddGroupbox({
+        Side = 2,
+        Name = Name,
+        IconName = IconName,
+        Collapsible = true,
+        Collapsed = DefaultOpen == false,
+    })
+end
         function Tab:AddTabbox(Info)
             local BoxHolder = New("Frame", {
                 AutomaticSize = Enum.AutomaticSize.Y,
