@@ -3606,7 +3606,7 @@ do
                     Button.Base.TextColor3 = Library.Scheme.AccentColor
                     Library.Registry[Button.Base].TextColor3 = "AccentColor"
 
-                    local Clicked = WaitForEvent(Button.Base.MouseButton1Click, 0.5)
+                    local Clicked = WaitForEvent(Button.Base.MouseButton1Click, 3)
 
                     Button.Base.Text = Button.Text
                     Button.Base.TextColor3 = Button.Risky and Library.Scheme.RedColor or Library.Scheme.FontColor
