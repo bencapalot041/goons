@@ -3550,7 +3550,7 @@ do
                 Size = UDim2.fromScale(1, 1),
                 Text = Button.Text,
                 TextSize = 14,
-                TextTransparency = 0.4,
+                TextTransparency = 0.35,
                 Visible = Button.Visible,
                 Parent = Holder,
             })
@@ -3589,7 +3589,7 @@ do
                 end
 
                 Button.Tween = TweenService:Create(Button.Base, Library.TweenInfo, {
-                    TextTransparency = 0.4,
+                    TextTransparency = 0.35,
                 })
                 Button.Tween:Play()
             end)
@@ -3661,7 +3661,7 @@ do
 
                 SubButton.Base.BackgroundColor3 = SubButton.Disabled and Library.Scheme.BackgroundColor
                     or Library.Scheme.MainColor
-                SubButton.Base.TextTransparency = SubButton.Disabled and 0.8 or 0.4
+                SubButton.Base.TextTransparency = SubButton.Disabled and 0.8 or 0.35
                 SubButton.Stroke.Transparency = SubButton.Disabled and 0.5 or 0
 
                 Library.Registry[SubButton.Base].BackgroundColor3 = SubButton.Disabled and "BackgroundColor"
@@ -3722,7 +3722,7 @@ do
 
             Button.Base.BackgroundColor3 = Button.Disabled and Library.Scheme.BackgroundColor
                 or Library.Scheme.MainColor
-            Button.Base.TextTransparency = Button.Disabled and 0.8 or 0.4
+            Button.Base.TextTransparency = Button.Disabled and 0.8 or 0.35
             Button.Stroke.Transparency = Button.Disabled and 0.5 or 0
 
             Library.Registry[Button.Base].BackgroundColor3 = Button.Disabled and "BackgroundColor" or "MainColor"
@@ -4276,7 +4276,7 @@ do
             Parent = Box,
         })
 
-        New("UIStroke", {
+        local BoxStroke = New("UIStroke", {
             Color = "OutlineColor",
             Parent = Box,
         })
@@ -4354,6 +4354,24 @@ do
             Label.Text = Text
         end
 
+        Box.Focused:Connect(function()
+
+            if Input.Disabled then
+                return
+            end
+
+            TweenService:Create(BoxStroke, Library.TweenInfo, {
+                Color = Library.Scheme.AccentColor,
+            }):Play()
+        end)
+
+        Box.FocusLost:Connect(function()
+
+            TweenService:Create(BoxStroke, Library.TweenInfo, {
+                Color = Library.Scheme.OutlineColor,
+            }):Play()
+        end)
+					
         if Input.Finished then
             Box.FocusLost:Connect(function(Enter)
                 if not Enter then
@@ -6990,6 +7008,7 @@ function Library:CreateWindow(WindowInfo)
         local TabButton: TextButton
         local TabLabel
         local TabIcon
+        local TabActiveBar
 
         local TabContainer
         local TabLeft
@@ -7004,6 +7023,25 @@ function Library:CreateWindow(WindowInfo)
                 Text = "",
                 Parent = Tabs,
             })
+
+			
+            TabActiveBar = New("Frame", {
+                BackgroundColor3 = "AccentColor",
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(0, 7),
+                Size = UDim2.new(0, 3, 1, -14),
+                ZIndex = TabButton.ZIndex + 1,
+                Parent = TabButton,
+            })
+
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = TabActiveBar,
+                })
+            )
+
             local ButtonPadding = New("UIPadding", {
                 PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
                 PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
@@ -7872,12 +7910,17 @@ end
                 return
             end
 
-            TweenService:Create(TabLabel, Library.TweenInfo, {
-                TextTransparency = Hovering and 0.25 or 0.5,
+            TweenService:Create(TabButton, Library.TweenInfo, {
+                BackgroundTransparency = Hovering and 0.7 or 1,
             }):Play()
+
+            TweenService:Create(TabLabel, Library.TweenInfo, {
+                TextTransparency = Hovering and 0.2 or 0.5,
+            }):Play()
+
             if TabIcon then
                 TweenService:Create(TabIcon, Library.TweenInfo, {
-                    ImageTransparency = Hovering and 0.25 or 0.5,
+                    ImageTransparency = Hovering and 0.2 or 0.5,
                 }):Play()
             end
         end
@@ -7888,11 +7931,17 @@ end
             end
 
             TweenService:Create(TabButton, Library.TweenInfo, {
+                BackgroundTransparency = 0.18,
+            }):Play()
+
+            TweenService:Create(TabActiveBar, Library.TweenInfo, {
                 BackgroundTransparency = 0,
             }):Play()
+
             TweenService:Create(TabLabel, Library.TweenInfo, {
                 TextTransparency = 0,
             }):Play()
+
             if TabIcon then
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = 0,
@@ -7917,9 +7966,15 @@ end
             TweenService:Create(TabButton, Library.TweenInfo, {
                 BackgroundTransparency = 1,
             }):Play()
+
+            TweenService:Create(TabActiveBar, Library.TweenInfo, {
+                BackgroundTransparency = 1,
+            }):Play()
+
             TweenService:Create(TabLabel, Library.TweenInfo, {
                 TextTransparency = 0.5,
             }):Play()
+
             if TabIcon then
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = 0.5,
@@ -8063,11 +8118,11 @@ end
         function Tab:AddKeyBox(Callback)
             assert(typeof(Callback) == "function", "Callback must be a function")
 
-            local Holder = New("Frame", {
-                BackgroundTransparency = 1,
-                Size = UDim2.new(0.75, 0, 0, 21),
-                Parent = TabContainer,
-            })
+        local Holder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 24),
+            Parent = Container,
+        })
 
             local Box = New("TextBox", {
                 BackgroundColor3 = "MainColor",
