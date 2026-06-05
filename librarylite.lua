@@ -3775,6 +3775,409 @@ do
 
         return Button
     end
+    function Funcs:AddFilterList(Idx, Info)
+
+        Info =
+            Info
+            or {}
+
+        local Groupbox =
+            self
+
+        local Container =
+            Groupbox.Container
+
+        local RowCount =
+            math.clamp(
+                tonumber(Info.Rows) or 8,
+                1,
+                20
+            )
+
+        local RowHeight =
+            tonumber(Info.RowHeight)
+            or 24
+
+        local HeaderHeight =
+            tonumber(Info.HeaderHeight)
+            or 20
+
+        local Callback =
+            Info.Callback
+
+        local FilterList = {
+            Rows = {},
+            RowData = {},
+            SelectedIndex = nil,
+            Visible = Info.Visible ~= false,
+            Type = "FilterList",
+        }
+
+        local Holder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(
+                1,
+                0,
+                0,
+                HeaderHeight + (RowCount * RowHeight) + 4
+            ),
+            Visible = FilterList.Visible,
+            Parent = Container,
+        })
+
+        local Box = New("Frame", {
+            BackgroundColor3 = "BackgroundColor",
+            Size = UDim2.fromScale(1, 1),
+            Parent = Holder,
+        })
+
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = Box,
+            })
+        )
+
+        New("UIStroke", {
+            Color = "OutlineColor",
+            Parent = Box,
+        })
+
+        local Header = New("Frame", {
+            BackgroundColor3 = "MainColor",
+            BackgroundTransparency = 0.25,
+            Size = UDim2.new(1, 0, 0, HeaderHeight),
+            Parent = Box,
+        })
+
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(8, 0),
+            Size = UDim2.new(0.50, -8, 1, 0),
+            Text = "Pet",
+            TextSize = 13,
+            TextTransparency = 0.35,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = Header,
+        })
+
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromScale(0.52, 0),
+            Size = UDim2.new(0.18, 0, 1, 0),
+            Text = "Max",
+            TextSize = 13,
+            TextTransparency = 0.35,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = Header,
+        })
+
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromScale(0.70, 0),
+            Size = UDim2.new(0.14, 0, 1, 0),
+            Text = "BW",
+            TextSize = 13,
+            TextTransparency = 0.35,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = Header,
+        })
+
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromScale(0.84, 0),
+            Size = UDim2.new(0.16, -8, 1, 0),
+            Text = "Pri",
+            TextSize = 13,
+            TextTransparency = 0.35,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = Header,
+        })
+
+        local RowsHolder = New("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(0, HeaderHeight + 2),
+            Size = UDim2.new(1, 0, 1, -HeaderHeight - 2),
+            Parent = Box,
+        })
+
+        local function ApplyRowVisual(row)
+
+            local hasData =
+                row.Data ~= nil
+
+            local selected =
+                row.Index == FilterList.SelectedIndex
+                and hasData == true
+
+            row.Button.Active =
+                hasData
+
+            row.Button.BackgroundTransparency =
+                selected and 0.15 or 1
+
+            row.Marker.BackgroundTransparency =
+                selected and 0 or 1
+
+            row.Pet.TextTransparency =
+                hasData and (selected and 0 or 0.18) or 0.75
+
+            row.Max.TextTransparency =
+                hasData and (selected and 0.05 or 0.30) or 0.85
+
+            row.Weight.TextTransparency =
+                hasData and (selected and 0.05 or 0.30) or 0.85
+
+            row.Priority.TextTransparency =
+                hasData and (selected and 0.05 or 0.30) or 0.85
+        end
+
+        local function SetRowText(label, value)
+
+            label.Text =
+                tostring(value or "")
+        end
+
+        for rowIndex = 1, RowCount do
+
+            local RowButton = New("TextButton", {
+                BackgroundColor3 = "MainColor",
+                BackgroundTransparency = 1,
+                Position = UDim2.new(
+                    0,
+                    0,
+                    0,
+                    (rowIndex - 1) * RowHeight
+                ),
+                Size = UDim2.new(1, 0, 0, RowHeight),
+                Text = "",
+                Parent = RowsHolder,
+            })
+
+            local Marker = New("Frame", {
+                BackgroundColor3 = "AccentColor",
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(3, 5),
+                Size = UDim2.new(0, 3, 1, -10),
+                Parent = RowButton,
+            })
+
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = Marker,
+                })
+            )
+
+            local PetLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(10, 0),
+                Size = UDim2.new(0.50, -10, 1, 0),
+                Text = "",
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowButton,
+            })
+
+            local MaxLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromScale(0.52, 0),
+                Size = UDim2.new(0.18, 0, 1, 0),
+                Text = "",
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowButton,
+            })
+
+            local WeightLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromScale(0.70, 0),
+                Size = UDim2.new(0.14, 0, 1, 0),
+                Text = "",
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowButton,
+            })
+
+            local PriorityLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromScale(0.84, 0),
+                Size = UDim2.new(0.16, -8, 1, 0),
+                Text = "",
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowButton,
+            })
+
+            local row = {
+                Index = rowIndex,
+                Button = RowButton,
+                Marker = Marker,
+                Pet = PetLabel,
+                Max = MaxLabel,
+                Weight = WeightLabel,
+                Priority = PriorityLabel,
+                Data = nil,
+            }
+
+            RowButton.MouseEnter:Connect(function()
+
+                if row.Data == nil then
+                    return
+                end
+
+                if row.Index ~= FilterList.SelectedIndex then
+                    RowButton.BackgroundTransparency = 0.72
+                end
+            end)
+
+            RowButton.MouseLeave:Connect(function()
+
+                ApplyRowVisual(row)
+            end)
+
+            RowButton.MouseButton1Click:Connect(function()
+
+                if row.Data == nil then
+                    return
+                end
+
+                FilterList:SetSelected(rowIndex)
+
+                if typeof(Callback) == "function" then
+                    Library:SafeCallback(
+                        Callback,
+                        rowIndex,
+                        row.Data
+                    )
+                end
+            end)
+
+            table.insert(
+                FilterList.Rows,
+                row
+            )
+
+            ApplyRowVisual(row)
+        end
+
+        function FilterList:SetRows(rows)
+
+            FilterList.RowData =
+                rows
+                or {}
+
+            for index, row in ipairs(FilterList.Rows) do
+
+                local data =
+                    FilterList.RowData[index]
+
+                row.Data =
+                    data
+
+                if type(data) == "table" then
+
+                    SetRowText(
+                        row.Pet,
+                        data.Pet
+                        or data.PetName
+                    )
+
+                    SetRowText(
+                        row.Max,
+                        data.Max
+                        or data.MaxPrice
+                    )
+
+                    SetRowText(
+                        row.Weight,
+                        data.Weight
+                        or data.BW
+                        or data.MinWeight
+                    )
+
+                    SetRowText(
+                        row.Priority,
+                        data.Priority
+                    )
+
+                else
+
+                    SetRowText(row.Pet, "")
+                    SetRowText(row.Max, "")
+                    SetRowText(row.Weight, "")
+                    SetRowText(row.Priority, "")
+                end
+
+                ApplyRowVisual(row)
+            end
+        end
+
+        function FilterList:SetSelected(index)
+
+            FilterList.SelectedIndex =
+                tonumber(index)
+
+            for _, row in ipairs(FilterList.Rows) do
+                ApplyRowVisual(row)
+            end
+        end
+
+        function FilterList:SetVisible(visible)
+
+            FilterList.Visible =
+                visible == true
+
+            Holder.Visible =
+                FilterList.Visible
+
+            Groupbox:Resize()
+        end
+
+        function FilterList:SetHeight(rowCount)
+
+            rowCount =
+                math.clamp(
+                    tonumber(rowCount) or RowCount,
+                    1,
+                    20
+                )
+
+            RowCount =
+                rowCount
+
+            Holder.Size =
+                UDim2.new(
+                    1,
+                    0,
+                    0,
+                    HeaderHeight + (RowCount * RowHeight) + 4
+                )
+
+            Groupbox:Resize()
+        end
+
+        FilterList.Holder =
+            Holder
+
+        table.insert(
+            Groupbox.Elements,
+            FilterList
+        )
+
+        Options[Idx] =
+            FilterList
+
+        Groupbox:Resize()
+
+        return FilterList
+    end
 
     function Funcs:AddCheckbox(Idx, Info)
         Info = Library:Validate(Info, Templates.Toggle)
