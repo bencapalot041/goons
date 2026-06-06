@@ -219,17 +219,17 @@ local Library = {
 
     IsLightTheme = false,
     Scheme = {
-        BackgroundColor = Color3.fromRGB(7, 7, 12),
-        MainColor = Color3.fromRGB(15, 13, 24),
-        AccentColor = Color3.fromRGB(150, 95, 255),
-        OutlineColor = Color3.fromRGB(43, 35, 68),
-        FontColor = Color3.fromRGB(245, 242, 255),
+        BackgroundColor = Color3.fromRGB(15, 15, 15),
+        MainColor = Color3.fromRGB(25, 25, 25),
+        AccentColor = Color3.fromRGB(125, 85, 255),
+        OutlineColor = Color3.fromRGB(40, 40, 40),
+        FontColor = Color3.new(1, 1, 1),
         Font = Font.fromEnum(Enum.Font.Code),
 
-        RedColor = Color3.fromRGB(255, 72, 92),
-        DestructiveColor = Color3.fromRGB(220, 38, 60),
-        DarkColor = Color3.fromRGB(0, 0, 0),
-        WhiteColor = Color3.fromRGB(255, 255, 255),
+        RedColor = Color3.fromRGB(255, 50, 50),
+        DestructiveColor = Color3.fromRGB(220, 38, 38),
+        DarkColor = Color3.new(0, 0, 0),
+        WhiteColor = Color3.new(1, 1, 1),
     },
 
     Registry = {},
@@ -307,14 +307,14 @@ local Templates = {
         Title = "No Title",
         Footer = "No Footer",
         Position = UDim2.fromOffset(6, 6),
-    	Size = UDim2.fromOffset(780, 610),
-        IconSize = UDim2.fromOffset(28, 28),
+        Size = UDim2.fromOffset(720, 600),
+        IconSize = UDim2.fromOffset(30, 30),
         AutoShow = true,
         Center = true,
         Resizable = true,
         SearchbarSize = UDim2.fromScale(1, 1),
         GlobalSearch = false,
-        CornerRadius = 6,
+        CornerRadius = 4,
         NotifySide = "Right",
         ShowCustomCursor = true,
         Font = Enum.Font.Code,
@@ -3776,7 +3776,8 @@ do
         return Button
     end
 
-    function Funcs:AddStatusList(Idx, Info)
+
+				    function Funcs:AddStatusList(Idx, Info)
 
         Info =
             Info
@@ -4080,7 +4081,7 @@ do
 
         return StatusList
     end
-
+				
     function Funcs:AddCheckbox(Idx, Info)
         Info = Library:Validate(Info, Templates.Toggle)
 
@@ -6788,11 +6789,7 @@ function Library:CreateWindow(WindowInfo)
     local BottomBackground
     local FooterLabel
 
-    local InitialLeftWidth = math.clamp(
-        math.ceil(WindowInfo.Size.X.Offset * 0.23),
-        165,
-        185
-    )
+    local InitialLeftWidth = math.ceil(WindowInfo.Size.X.Offset * 0.3)
     local IsCompact = WindowInfo.SidebarCompacted
     local LastExpandedWidth = InitialLeftWidth
 
@@ -6828,7 +6825,7 @@ function Library:CreateWindow(WindowInfo)
         )
         Library:AddOutline(MainFrame)
         Library:MakeLine(MainFrame, {
-            Position = UDim2.fromOffset(0, 44),
+            Position = UDim2.fromOffset(0, 48),
             Size = UDim2.new(1, 0, 0, 1),
         })
 
@@ -6867,7 +6864,7 @@ function Library:CreateWindow(WindowInfo)
         --// Top Bar \\-
         local TopBar = New("Frame", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, 44),
+            Size = UDim2.new(1, 0, 0, 48),
             Parent = MainFrame,
         })
         Library:MakeDraggable(MainFrame, TopBar, false, true)
@@ -7121,7 +7118,7 @@ function Library:CreateWindow(WindowInfo)
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
             BackgroundColor3 = "BackgroundColor",
             CanvasSize = UDim2.fromScale(0, 0),
-            Position = UDim2.fromOffset(0, 45),
+            Position = UDim2.fromOffset(0, 49),
             ScrollBarThickness = 0,
             Size = UDim2.new(0, InitialLeftWidth, 1, -70),
             Parent = MainFrame,
@@ -7137,7 +7134,7 @@ function Library:CreateWindow(WindowInfo)
                 return Library:GetBetterColor(Library.Scheme.BackgroundColor, 1)
             end,
             Name = "Container",
-            Position = UDim2.new(1, 0, 0, 45),
+            Position = UDim2.new(1, 0, 0, 49),
             Size = UDim2.new(1, -InitialLeftWidth - 1, 1, -70),
             Parent = MainFrame,
         })
