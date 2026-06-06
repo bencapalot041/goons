@@ -4223,6 +4223,15 @@ do
             tonumber(Info.HeaderHeight)
             or 20
 
+        local Columns =
+            Info.Columns
+            or {
+                "Pet",
+                "Max",
+                "BW",
+                "Pri",
+            }
+
         local Callback =
             Info.Callback
 
@@ -4276,7 +4285,7 @@ do
             BackgroundTransparency = 1,
             Position = UDim2.fromOffset(8, 0),
             Size = UDim2.new(0.50, -8, 1, 0),
-            Text = "Pet",
+            Text = tostring(Columns[1] or "Pet"),
             TextSize = 13,
             TextTransparency = 0.35,
             TextXAlignment = Enum.TextXAlignment.Left,
@@ -4287,7 +4296,7 @@ do
             BackgroundTransparency = 1,
             Position = UDim2.fromScale(0.52, 0),
             Size = UDim2.new(0.18, 0, 1, 0),
-            Text = "Max",
+            Text = tostring(Columns[2] or "Max"),
             TextSize = 13,
             TextTransparency = 0.35,
             TextXAlignment = Enum.TextXAlignment.Left,
@@ -4298,7 +4307,7 @@ do
             BackgroundTransparency = 1,
             Position = UDim2.fromScale(0.70, 0),
             Size = UDim2.new(0.14, 0, 1, 0),
-            Text = "BW",
+            Text = tostring(Columns[3] or "BW"),
             TextSize = 13,
             TextTransparency = 0.35,
             TextXAlignment = Enum.TextXAlignment.Left,
@@ -4309,18 +4318,11 @@ do
             BackgroundTransparency = 1,
             Position = UDim2.fromScale(0.84, 0),
             Size = UDim2.new(0.16, -8, 1, 0),
-            Text = "Pri",
+            Text = tostring(Columns[4] or "Pri"),
             TextSize = 13,
             TextTransparency = 0.35,
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = Header,
-        })
-
-        local RowsHolder = New("Frame", {
-            BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(0, HeaderHeight + 2),
-            Size = UDim2.new(1, 0, 1, -HeaderHeight - 2),
-            Parent = Box,
         })
 
         local function ApplyRowVisual(row)
