@@ -3775,6 +3775,341 @@ do
 
         return Button
     end
+
+    function Funcs:AddActionRow(Idx, Info)
+
+        Info =
+            Info
+            or {}
+
+        local Groupbox =
+            self
+
+        local Container =
+            Groupbox.Container
+
+        local ButtonsInfo =
+            Info.Buttons
+            or {}
+
+        local RowHeight =
+            tonumber(Info.Height)
+            or 21
+
+        local Gap =
+            tonumber(Info.Gap)
+            or 9
+
+        local ActionRow = {
+            Buttons = {},
+            ButtonMap = {},
+            Visible = Info.Visible ~= false,
+            Type = "ActionRow",
+        }
+
+        local Holder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, RowHeight),
+            Visible = ActionRow.Visible,
+            Parent = Container,
+        })
+
+        local List = New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalFlex = Enum.UIFlexAlignment.Fill,
+            Padding = UDim.new(0, Gap),
+            Parent = Holder,
+        })
+
+        local function CreateActionButton(buttonInfo)
+
+            buttonInfo =
+                buttonInfo
+                or {}
+
+            local buttonId =
+                tostring(buttonInfo.Id or buttonInfo.Text or "Button")
+
+            local Button = {
+                Id = buttonId,
+                Text = tostring(buttonInfo.Text or buttonId),
+                Callback = buttonInfo.Callback or buttonInfo.Func,
+                Tooltip = buttonInfo.Tooltip,
+                DisabledTooltip = buttonInfo.DisabledTooltip,
+                Risky = buttonInfo.Risky == true,
+                DoubleClick = buttonInfo.DoubleClick == true,
+                Disabled = buttonInfo.Disabled == true,
+                Visible = buttonInfo.Visible ~= false,
+                Locked = false,
+                Type = "ActionRowButton",
+            }
+
+            local Base = New("TextButton", {
+                Active = not Button.Disabled,
+                BackgroundColor3 = Button.Disabled and "BackgroundColor" or "MainColor",
+                Size = UDim2.fromScale(1, 1),
+                Text = Button.Text,
+                TextSize = 14,
+                TextTransparency = Button.Disabled and 0.8 or 0.35,
+                Visible = Button.Visible,
+                Parent = Holder,
+            })
+
+            local Stroke = New("UIStroke", {
+                Color = "OutlineColor",
+                Transparency = Button.Disabled and 0.5 or 0,
+                Parent = Base,
+            })
+
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                    Parent = Base,
+                })
+            )
+
+            Button.Base =
+                Base
+
+            Button.Stroke =
+                Stroke
+
+            function Button:UpdateColors()
+
+                if Library.Unloaded then
+                    return
+                end
+
+                Base.Active =
+                    not Button.Disabled
+
+                Base.BackgroundColor3 =
+                    Button.Disabled and Library.Scheme.BackgroundColor
+                    or Library.Scheme.MainColor
+
+                Base.TextTransparency =
+                    Button.Disabled and 0.8
+                    or 0.35
+
+                Stroke.Transparency =
+                    Button.Disabled and 0.5
+                    or 0
+
+                Library.Registry[Base].BackgroundColor3 =
+                    Button.Disabled and "BackgroundColor"
+                    or "MainColor"
+            end
+
+            function Button:SetDisabled(disabled)
+
+                Button.Disabled =
+                    disabled == true
+
+                if Button.TooltipTable then
+                    Button.TooltipTable.Disabled =
+                        Button.Disabled
+                end
+
+                Button:UpdateColors()
+            end
+
+            function Button:SetVisible(visible)
+
+                Button.Visible =
+                    visible == true
+
+                Base.Visible =
+                    Button.Visible
+
+                Groupbox:Resize()
+            end
+
+            function Button:SetText(text)
+
+                Button.Text =
+                    tostring(text or "")
+
+                Base.Text =
+                    Button.Text
+            end
+
+            Base.MouseEnter:Connect(function()
+
+                if Button.Disabled then
+                    return
+                end
+
+                TweenService:Create(Base, Library.TweenInfo, {
+                    TextTransparency = 0,
+                }):Play()
+            end)
+
+            Base.MouseLeave:Connect(function()
+
+                if Button.Disabled then
+                    return
+                end
+
+                TweenService:Create(Base, Library.TweenInfo, {
+                    TextTransparency = 0.35,
+                }):Play()
+            end)
+
+            Base.MouseButton1Click:Connect(function()
+
+                if Button.Disabled
+                or Button.Locked then
+                    return
+                end
+
+                if Button.DoubleClick then
+
+                    Button.Locked =
+                        true
+
+                    local oldText =
+                        Base.Text
+
+                    Base.Text =
+                        "Are you sure?"
+
+                    Base.TextColor3 =
+                        Library.Scheme.AccentColor
+
+                    Library.Registry[Base].TextColor3 =
+                        "AccentColor"
+
+                    local clicked =
+                        WaitForEvent(
+                            Base.MouseButton1Click,
+                            3
+                        )
+
+                    Base.Text =
+                        oldText
+
+                    Base.TextColor3 =
+                        Button.Risky and Library.Scheme.RedColor
+                        or Library.Scheme.FontColor
+
+                    Library.Registry[Base].TextColor3 =
+                        Button.Risky and "RedColor"
+                        or "FontColor"
+
+                    if clicked
+                    and type(Button.Callback) == "function" then
+                        Library:SafeCallback(Button.Callback)
+                    end
+
+                    RunService.RenderStepped:Wait()
+
+                    Button.Locked =
+                        false
+
+                    return
+                end
+
+                if type(Button.Callback) == "function" then
+                    Library:SafeCallback(Button.Callback)
+                end
+            end)
+
+            if typeof(Button.Tooltip) == "string"
+            or typeof(Button.DisabledTooltip) == "string" then
+
+                Button.TooltipTable =
+                    Library:AddTooltip(
+                        Button.Tooltip,
+                        Button.DisabledTooltip,
+                        Base
+                    )
+
+                Button.TooltipTable.Disabled =
+                    Button.Disabled
+            end
+
+            if Button.Risky then
+                Base.TextColor3 =
+                    Library.Scheme.RedColor
+
+                Library.Registry[Base].TextColor3 =
+                    "RedColor"
+            end
+
+            Button:UpdateColors()
+
+            table.insert(
+                ActionRow.Buttons,
+                Button
+            )
+
+            ActionRow.ButtonMap[buttonId] =
+                Button
+
+            return Button
+        end
+
+        for _, buttonInfo in ipairs(ButtonsInfo) do
+            CreateActionButton(buttonInfo)
+        end
+
+        function ActionRow:GetButton(buttonId)
+
+            return ActionRow.ButtonMap[
+                tostring(buttonId or "")
+            ]
+        end
+
+        function ActionRow:SetVisible(visible)
+
+            ActionRow.Visible =
+                visible == true
+
+            Holder.Visible =
+                ActionRow.Visible
+
+            Groupbox:Resize()
+        end
+
+        function ActionRow:SetDisabled(buttonId, disabled)
+
+            local button =
+                ActionRow:GetButton(buttonId)
+
+            if button
+            and type(button.SetDisabled) == "function" then
+                button:SetDisabled(disabled)
+            end
+        end
+
+        function ActionRow:SetText(buttonId, text)
+
+            local button =
+                ActionRow:GetButton(buttonId)
+
+            if button
+            and type(button.SetText) == "function" then
+                button:SetText(text)
+            end
+        end
+
+        ActionRow.Holder =
+            Holder
+
+        table.insert(
+            Groupbox.Elements,
+            ActionRow
+        )
+
+        Options[Idx] =
+            ActionRow
+
+        Groupbox:Resize()
+
+        return ActionRow
+    end
+
     function Funcs:AddFilterList(Idx, Info)
 
         Info =
