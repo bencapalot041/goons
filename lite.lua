@@ -4179,6 +4179,311 @@ do
         return FilterList
     end
 
+    function Funcs:AddStatusList(Idx, Info)
+
+        Info =
+            Info
+            or {}
+
+        local Groupbox =
+            self
+
+        local Container =
+            Groupbox.Container
+
+        local RowHeight =
+            tonumber(Info.RowHeight)
+            or 24
+
+        local KeyWidth =
+            tonumber(Info.KeyWidth)
+            or 0.38
+
+        local Rows =
+            Info.Rows
+            or {}
+
+        local StatusList = {
+            Rows = {},
+            RowMap = {},
+            Visible = Info.Visible ~= false,
+            Type = "StatusList",
+        }
+
+        local Holder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(
+                1,
+                0,
+                0,
+                math.max(1, #Rows) * RowHeight
+            ),
+            Visible = StatusList.Visible,
+            Parent = Container,
+        })
+
+        local RowHolder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Parent = Holder,
+        })
+
+        local function ApplyRowPosition(row, index)
+
+            row.Holder.Position =
+                UDim2.new(
+                    0,
+                    0,
+                    0,
+                    (index - 1) * RowHeight
+                )
+
+            row.Holder.Size =
+                UDim2.new(
+                    1,
+                    0,
+                    0,
+                    RowHeight
+                )
+        end
+
+        local function CreateRow(index, keyText, valueText)
+
+            local Row = {}
+
+            local RowFrame = New("Frame", {
+                BackgroundTransparency = 1,
+                Parent = RowHolder,
+            })
+
+            local KeyLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(0, 0),
+                Size = UDim2.new(KeyWidth, -4, 1, 0),
+                Text = tostring(keyText or ""),
+                TextSize = 13,
+                TextTransparency = 0.38,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowFrame,
+            })
+
+            local ValueLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(KeyWidth, 4, 0, 0),
+                Size = UDim2.new(1 - KeyWidth, -4, 1, 0),
+                Text = tostring(valueText or ""),
+                TextSize = 13,
+                TextTransparency = 0.05,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowFrame,
+            })
+
+            Row.Index =
+                index
+
+            Row.Key =
+                tostring(keyText or "")
+
+            Row.Value =
+                tostring(valueText or "")
+
+            Row.Holder =
+                RowFrame
+
+            Row.KeyLabel =
+                KeyLabel
+
+            Row.ValueLabel =
+                ValueLabel
+
+            ApplyRowPosition(
+                Row,
+                index
+            )
+
+            return Row
+        end
+
+        function StatusList:Resize()
+
+            Holder.Size =
+                UDim2.new(
+                    1,
+                    0,
+                    0,
+                    math.max(1, #StatusList.Rows) * RowHeight
+                )
+
+            Groupbox:Resize()
+        end
+
+        function StatusList:SetRows(rows)
+
+            rows =
+                rows
+                or {}
+
+            for _, row in ipairs(StatusList.Rows) do
+
+                if row.Holder then
+                    row.Holder:Destroy()
+                end
+            end
+
+            table.clear(StatusList.Rows)
+            table.clear(StatusList.RowMap)
+
+            for index, rowData in ipairs(rows) do
+
+                local keyText =
+                    rowData[1]
+                    or rowData.Key
+                    or rowData.Name
+                    or ""
+
+                local valueText =
+                    rowData[2]
+                    or rowData.Value
+                    or ""
+
+                local row =
+                    CreateRow(
+                        index,
+                        keyText,
+                        valueText
+                    )
+
+                table.insert(
+                    StatusList.Rows,
+                    row
+                )
+
+                StatusList.RowMap[tostring(keyText)] =
+                    row
+            end
+
+            StatusList:Resize()
+        end
+
+        function StatusList:SetRow(keyText, valueText)
+
+            keyText =
+                tostring(keyText or "")
+
+            local row =
+                StatusList.RowMap[keyText]
+
+            if not row then
+
+                row =
+                    CreateRow(
+                        #StatusList.Rows + 1,
+                        keyText,
+                        valueText
+                    )
+
+                table.insert(
+                    StatusList.Rows,
+                    row
+                )
+
+                StatusList.RowMap[keyText] =
+                    row
+
+                StatusList:Resize()
+
+                return
+            end
+
+            row.Value =
+                tostring(valueText or "")
+
+            row.ValueLabel.Text =
+                row.Value
+        end
+
+        function StatusList:SetVisible(visible)
+
+            StatusList.Visible =
+                visible == true
+
+            Holder.Visible =
+                StatusList.Visible
+
+            Groupbox:Resize()
+        end
+
+        function StatusList:SetKeyText(keyText, newKeyText)
+
+            keyText =
+                tostring(keyText or "")
+
+            newKeyText =
+                tostring(newKeyText or "")
+
+            local row =
+                StatusList.RowMap[keyText]
+
+            if not row then
+                return
+            end
+
+            StatusList.RowMap[keyText] =
+                nil
+
+            row.Key =
+                newKeyText
+
+            row.KeyLabel.Text =
+                newKeyText
+
+            StatusList.RowMap[newKeyText] =
+                row
+        end
+
+        function StatusList:SetTextTransparency(keyText, keyTransparency, valueTransparency)
+
+            keyText =
+                tostring(keyText or "")
+
+            local row =
+                StatusList.RowMap[keyText]
+
+            if not row then
+                return
+            end
+
+            row.KeyLabel.TextTransparency =
+                tonumber(keyTransparency)
+                or row.KeyLabel.TextTransparency
+
+            row.ValueLabel.TextTransparency =
+                tonumber(valueTransparency)
+                or row.ValueLabel.TextTransparency
+        end
+
+        StatusList:SetRows(
+            Rows
+        )
+
+        StatusList.Holder =
+            Holder
+
+        table.insert(
+            Groupbox.Elements,
+            StatusList
+        )
+
+        Options[Idx] =
+            StatusList
+
+        Groupbox:Resize()
+
+        return StatusList
+    end
+				
     function Funcs:AddCheckbox(Idx, Info)
         Info = Library:Validate(Info, Templates.Toggle)
 
