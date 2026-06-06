@@ -219,17 +219,17 @@ local Library = {
 
     IsLightTheme = false,
     Scheme = {
-        BackgroundColor = Color3.fromRGB(15, 15, 15),
-        MainColor = Color3.fromRGB(25, 25, 25),
-        AccentColor = Color3.fromRGB(125, 85, 255),
-        OutlineColor = Color3.fromRGB(40, 40, 40),
-        FontColor = Color3.new(1, 1, 1),
+        BackgroundColor = Color3.fromRGB(7, 7, 12),
+        MainColor = Color3.fromRGB(15, 13, 24),
+        AccentColor = Color3.fromRGB(150, 95, 255),
+        OutlineColor = Color3.fromRGB(43, 35, 68),
+        FontColor = Color3.fromRGB(245, 242, 255),
         Font = Font.fromEnum(Enum.Font.Code),
 
-        RedColor = Color3.fromRGB(255, 50, 50),
-        DestructiveColor = Color3.fromRGB(220, 38, 38),
-        DarkColor = Color3.new(0, 0, 0),
-        WhiteColor = Color3.new(1, 1, 1),
+        RedColor = Color3.fromRGB(255, 72, 92),
+        DestructiveColor = Color3.fromRGB(220, 38, 60),
+        DarkColor = Color3.fromRGB(0, 0, 0),
+        WhiteColor = Color3.fromRGB(255, 255, 255),
     },
 
     Registry = {},
@@ -307,14 +307,14 @@ local Templates = {
         Title = "No Title",
         Footer = "No Footer",
         Position = UDim2.fromOffset(6, 6),
-        Size = UDim2.fromOffset(720, 600),
-        IconSize = UDim2.fromOffset(30, 30),
+    	Size = UDim2.fromOffset(780, 610),
+        IconSize = UDim2.fromOffset(28, 28),
         AutoShow = true,
         Center = true,
         Resizable = true,
         SearchbarSize = UDim2.fromScale(1, 1),
         GlobalSearch = false,
-        CornerRadius = 4,
+        CornerRadius = 6,
         NotifySide = "Right",
         ShowCustomCursor = true,
         Font = Enum.Font.Code,
@@ -3550,7 +3550,7 @@ do
                 Size = UDim2.fromScale(1, 1),
                 Text = Button.Text,
                 TextSize = 14,
-                TextTransparency = 0.4,
+                TextTransparency = 0.35,
                 Visible = Button.Visible,
                 Parent = Holder,
             })
@@ -3589,7 +3589,7 @@ do
                 end
 
                 Button.Tween = TweenService:Create(Button.Base, Library.TweenInfo, {
-                    TextTransparency = 0.4,
+                    TextTransparency = 0.35,
                 })
                 Button.Tween:Play()
             end)
@@ -3661,7 +3661,7 @@ do
 
                 SubButton.Base.BackgroundColor3 = SubButton.Disabled and Library.Scheme.BackgroundColor
                     or Library.Scheme.MainColor
-                SubButton.Base.TextTransparency = SubButton.Disabled and 0.8 or 0.4
+                SubButton.Base.TextTransparency = SubButton.Disabled and 0.8 or 0.35
                 SubButton.Stroke.Transparency = SubButton.Disabled and 0.5 or 0
 
                 Library.Registry[SubButton.Base].BackgroundColor3 = SubButton.Disabled and "BackgroundColor"
@@ -3722,7 +3722,7 @@ do
 
             Button.Base.BackgroundColor3 = Button.Disabled and Library.Scheme.BackgroundColor
                 or Library.Scheme.MainColor
-            Button.Base.TextTransparency = Button.Disabled and 0.8 or 0.4
+            Button.Base.TextTransparency = Button.Disabled and 0.8 or 0.35
             Button.Stroke.Transparency = Button.Disabled and 0.5 or 0
 
             Library.Registry[Button.Base].BackgroundColor3 = Button.Disabled and "BackgroundColor" or "MainColor"
@@ -3775,7 +3775,715 @@ do
 
         return Button
     end
+    function Funcs:AddFilterList(Idx, Info)
 
+        Info =
+            Info
+            or {}
+
+        local Groupbox =
+            self
+
+        local Container =
+            Groupbox.Container
+
+        local RowCount =
+            math.clamp(
+                tonumber(Info.Rows) or 8,
+                1,
+                20
+            )
+
+        local RowHeight =
+            tonumber(Info.RowHeight)
+            or 24
+
+        local HeaderHeight =
+            tonumber(Info.HeaderHeight)
+            or 20
+
+        local Callback =
+            Info.Callback
+
+        local FilterList = {
+            Rows = {},
+            RowData = {},
+            SelectedIndex = nil,
+            Visible = Info.Visible ~= false,
+            Type = "FilterList",
+        }
+
+        local Holder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(
+                1,
+                0,
+                0,
+                HeaderHeight + (RowCount * RowHeight) + 4
+            ),
+            Visible = FilterList.Visible,
+            Parent = Container,
+        })
+
+        local Box = New("Frame", {
+            BackgroundColor3 = "BackgroundColor",
+            Size = UDim2.fromScale(1, 1),
+            Parent = Holder,
+        })
+
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = Box,
+            })
+        )
+
+        New("UIStroke", {
+            Color = "OutlineColor",
+            Parent = Box,
+        })
+
+        local Header = New("Frame", {
+            BackgroundColor3 = "MainColor",
+            BackgroundTransparency = 0.25,
+            Size = UDim2.new(1, 0, 0, HeaderHeight),
+            Parent = Box,
+        })
+
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(8, 0),
+            Size = UDim2.new(0.50, -8, 1, 0),
+            Text = "Pet",
+            TextSize = 13,
+            TextTransparency = 0.35,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = Header,
+        })
+
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromScale(0.52, 0),
+            Size = UDim2.new(0.18, 0, 1, 0),
+            Text = "Max",
+            TextSize = 13,
+            TextTransparency = 0.35,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = Header,
+        })
+
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromScale(0.70, 0),
+            Size = UDim2.new(0.14, 0, 1, 0),
+            Text = "BW",
+            TextSize = 13,
+            TextTransparency = 0.35,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = Header,
+        })
+
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromScale(0.84, 0),
+            Size = UDim2.new(0.16, -8, 1, 0),
+            Text = "Pri",
+            TextSize = 13,
+            TextTransparency = 0.35,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = Header,
+        })
+
+        local RowsHolder = New("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(0, HeaderHeight + 2),
+            Size = UDim2.new(1, 0, 1, -HeaderHeight - 2),
+            Parent = Box,
+        })
+
+        local function ApplyRowVisual(row)
+
+            local hasData =
+                row.Data ~= nil
+
+            local selected =
+                row.Index == FilterList.SelectedIndex
+                and hasData == true
+
+            row.Button.Active =
+                hasData
+
+            row.Button.BackgroundTransparency =
+                selected and 0.15 or 1
+
+            row.Marker.BackgroundTransparency =
+                selected and 0 or 1
+
+            row.Pet.TextTransparency =
+                hasData and (selected and 0 or 0.18) or 0.75
+
+            row.Max.TextTransparency =
+                hasData and (selected and 0.05 or 0.30) or 0.85
+
+            row.Weight.TextTransparency =
+                hasData and (selected and 0.05 or 0.30) or 0.85
+
+            row.Priority.TextTransparency =
+                hasData and (selected and 0.05 or 0.30) or 0.85
+        end
+
+        local function SetRowText(label, value)
+
+            label.Text =
+                tostring(value or "")
+        end
+
+        for rowIndex = 1, RowCount do
+
+            local RowButton = New("TextButton", {
+                BackgroundColor3 = "MainColor",
+                BackgroundTransparency = 1,
+                Position = UDim2.new(
+                    0,
+                    0,
+                    0,
+                    (rowIndex - 1) * RowHeight
+                ),
+                Size = UDim2.new(1, 0, 0, RowHeight),
+                Text = "",
+                Parent = RowsHolder,
+            })
+
+            local Marker = New("Frame", {
+                BackgroundColor3 = "AccentColor",
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(3, 5),
+                Size = UDim2.new(0, 3, 1, -10),
+                Parent = RowButton,
+            })
+
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = Marker,
+                })
+            )
+
+            local PetLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(10, 0),
+                Size = UDim2.new(0.50, -10, 1, 0),
+                Text = "",
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowButton,
+            })
+
+            local MaxLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromScale(0.52, 0),
+                Size = UDim2.new(0.18, 0, 1, 0),
+                Text = "",
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowButton,
+            })
+
+            local WeightLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromScale(0.70, 0),
+                Size = UDim2.new(0.14, 0, 1, 0),
+                Text = "",
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowButton,
+            })
+
+            local PriorityLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromScale(0.84, 0),
+                Size = UDim2.new(0.16, -8, 1, 0),
+                Text = "",
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowButton,
+            })
+
+            local row = {
+                Index = rowIndex,
+                Button = RowButton,
+                Marker = Marker,
+                Pet = PetLabel,
+                Max = MaxLabel,
+                Weight = WeightLabel,
+                Priority = PriorityLabel,
+                Data = nil,
+            }
+
+            RowButton.MouseEnter:Connect(function()
+
+                if row.Data == nil then
+                    return
+                end
+
+                if row.Index ~= FilterList.SelectedIndex then
+                    RowButton.BackgroundTransparency = 0.72
+                end
+            end)
+
+            RowButton.MouseLeave:Connect(function()
+
+                ApplyRowVisual(row)
+            end)
+
+            RowButton.MouseButton1Click:Connect(function()
+
+                if row.Data == nil then
+                    return
+                end
+
+                FilterList:SetSelected(rowIndex)
+
+                if typeof(Callback) == "function" then
+                    Library:SafeCallback(
+                        Callback,
+                        rowIndex,
+                        row.Data
+                    )
+                end
+            end)
+
+            table.insert(
+                FilterList.Rows,
+                row
+            )
+
+            ApplyRowVisual(row)
+        end
+
+        function FilterList:SetRows(rows)
+
+            FilterList.RowData =
+                rows
+                or {}
+
+            for index, row in ipairs(FilterList.Rows) do
+
+                local data =
+                    FilterList.RowData[index]
+
+                row.Data =
+                    data
+
+                if type(data) == "table" then
+
+                    SetRowText(
+                        row.Pet,
+                        data.Pet
+                        or data.PetName
+                    )
+
+                    SetRowText(
+                        row.Max,
+                        data.Max
+                        or data.MaxPrice
+                    )
+
+                    SetRowText(
+                        row.Weight,
+                        data.Weight
+                        or data.BW
+                        or data.MinWeight
+                    )
+
+                    SetRowText(
+                        row.Priority,
+                        data.Priority
+                    )
+
+                else
+
+                    SetRowText(row.Pet, "")
+                    SetRowText(row.Max, "")
+                    SetRowText(row.Weight, "")
+                    SetRowText(row.Priority, "")
+                end
+
+                ApplyRowVisual(row)
+            end
+        end
+
+        function FilterList:SetSelected(index)
+
+            FilterList.SelectedIndex =
+                tonumber(index)
+
+            for _, row in ipairs(FilterList.Rows) do
+                ApplyRowVisual(row)
+            end
+        end
+
+        function FilterList:SetVisible(visible)
+
+            FilterList.Visible =
+                visible == true
+
+            Holder.Visible =
+                FilterList.Visible
+
+            Groupbox:Resize()
+        end
+
+        function FilterList:SetHeight(rowCount)
+
+            rowCount =
+                math.clamp(
+                    tonumber(rowCount) or RowCount,
+                    1,
+                    20
+                )
+
+            RowCount =
+                rowCount
+
+            Holder.Size =
+                UDim2.new(
+                    1,
+                    0,
+                    0,
+                    HeaderHeight + (RowCount * RowHeight) + 4
+                )
+
+            Groupbox:Resize()
+        end
+
+        FilterList.Holder =
+            Holder
+
+        table.insert(
+            Groupbox.Elements,
+            FilterList
+        )
+
+        Options[Idx] =
+            FilterList
+
+        Groupbox:Resize()
+
+        return FilterList
+    end
+
+    function Funcs:AddStatusList(Idx, Info)
+
+        Info =
+            Info
+            or {}
+
+        local Groupbox =
+            self
+
+        local Container =
+            Groupbox.Container
+
+        local RowHeight =
+            tonumber(Info.RowHeight)
+            or 24
+
+        local KeyWidth =
+            tonumber(Info.KeyWidth)
+            or 0.38
+
+        local Rows =
+            Info.Rows
+            or {}
+
+        local StatusList = {
+            Rows = {},
+            RowMap = {},
+            Visible = Info.Visible ~= false,
+            Type = "StatusList",
+        }
+
+        local Holder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(
+                1,
+                0,
+                0,
+                math.max(1, #Rows) * RowHeight
+            ),
+            Visible = StatusList.Visible,
+            Parent = Container,
+        })
+
+        local RowHolder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Parent = Holder,
+        })
+
+        local function ApplyRowPosition(row, index)
+
+            row.Holder.Position =
+                UDim2.new(
+                    0,
+                    0,
+                    0,
+                    (index - 1) * RowHeight
+                )
+
+            row.Holder.Size =
+                UDim2.new(
+                    1,
+                    0,
+                    0,
+                    RowHeight
+                )
+        end
+
+        local function CreateRow(index, keyText, valueText)
+
+            local Row = {}
+
+            local RowFrame = New("Frame", {
+                BackgroundTransparency = 1,
+                Parent = RowHolder,
+            })
+
+            local KeyLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(0, 0),
+                Size = UDim2.new(KeyWidth, -4, 1, 0),
+                Text = tostring(keyText or ""),
+                TextSize = 13,
+                TextTransparency = 0.38,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowFrame,
+            })
+
+            local ValueLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(KeyWidth, 4, 0, 0),
+                Size = UDim2.new(1 - KeyWidth, -4, 1, 0),
+                Text = tostring(valueText or ""),
+                TextSize = 13,
+                TextTransparency = 0.05,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowFrame,
+            })
+
+            Row.Index =
+                index
+
+            Row.Key =
+                tostring(keyText or "")
+
+            Row.Value =
+                tostring(valueText or "")
+
+            Row.Holder =
+                RowFrame
+
+            Row.KeyLabel =
+                KeyLabel
+
+            Row.ValueLabel =
+                ValueLabel
+
+            ApplyRowPosition(
+                Row,
+                index
+            )
+
+            return Row
+        end
+
+        function StatusList:Resize()
+
+            Holder.Size =
+                UDim2.new(
+                    1,
+                    0,
+                    0,
+                    math.max(1, #StatusList.Rows) * RowHeight
+                )
+
+            Groupbox:Resize()
+        end
+
+        function StatusList:SetRows(rows)
+
+            rows =
+                rows
+                or {}
+
+            for _, row in ipairs(StatusList.Rows) do
+
+                if row.Holder then
+                    row.Holder:Destroy()
+                end
+            end
+
+            table.clear(StatusList.Rows)
+            table.clear(StatusList.RowMap)
+
+            for index, rowData in ipairs(rows) do
+
+                local keyText =
+                    rowData[1]
+                    or rowData.Key
+                    or rowData.Name
+                    or ""
+
+                local valueText =
+                    rowData[2]
+                    or rowData.Value
+                    or ""
+
+                local row =
+                    CreateRow(
+                        index,
+                        keyText,
+                        valueText
+                    )
+
+                table.insert(
+                    StatusList.Rows,
+                    row
+                )
+
+                StatusList.RowMap[tostring(keyText)] =
+                    row
+            end
+
+            StatusList:Resize()
+        end
+
+        function StatusList:SetRow(keyText, valueText)
+
+            keyText =
+                tostring(keyText or "")
+
+            local row =
+                StatusList.RowMap[keyText]
+
+            if not row then
+
+                row =
+                    CreateRow(
+                        #StatusList.Rows + 1,
+                        keyText,
+                        valueText
+                    )
+
+                table.insert(
+                    StatusList.Rows,
+                    row
+                )
+
+                StatusList.RowMap[keyText] =
+                    row
+
+                StatusList:Resize()
+
+                return
+            end
+
+            row.Value =
+                tostring(valueText or "")
+
+            row.ValueLabel.Text =
+                row.Value
+        end
+
+        function StatusList:SetVisible(visible)
+
+            StatusList.Visible =
+                visible == true
+
+            Holder.Visible =
+                StatusList.Visible
+
+            Groupbox:Resize()
+        end
+
+        function StatusList:SetKeyText(keyText, newKeyText)
+
+            keyText =
+                tostring(keyText or "")
+
+            newKeyText =
+                tostring(newKeyText or "")
+
+            local row =
+                StatusList.RowMap[keyText]
+
+            if not row then
+                return
+            end
+
+            StatusList.RowMap[keyText] =
+                nil
+
+            row.Key =
+                newKeyText
+
+            row.KeyLabel.Text =
+                newKeyText
+
+            StatusList.RowMap[newKeyText] =
+                row
+        end
+
+        function StatusList:SetTextTransparency(keyText, keyTransparency, valueTransparency)
+
+            keyText =
+                tostring(keyText or "")
+
+            local row =
+                StatusList.RowMap[keyText]
+
+            if not row then
+                return
+            end
+
+            row.KeyLabel.TextTransparency =
+                tonumber(keyTransparency)
+                or row.KeyLabel.TextTransparency
+
+            row.ValueLabel.TextTransparency =
+                tonumber(valueTransparency)
+                or row.ValueLabel.TextTransparency
+        end
+
+        StatusList:SetRows(
+            Rows
+        )
+
+        StatusList.Holder =
+            Holder
+
+        table.insert(
+            Groupbox.Elements,
+            StatusList
+        )
+
+        Options[Idx] =
+            StatusList
+
+        Groupbox:Resize()
+
+        return StatusList
+    end
+				
     function Funcs:AddCheckbox(Idx, Info)
         Info = Library:Validate(Info, Templates.Toggle)
 
@@ -4276,7 +4984,7 @@ do
             Parent = Box,
         })
 
-        New("UIStroke", {
+        local BoxStroke = New("UIStroke", {
             Color = "OutlineColor",
             Parent = Box,
         })
@@ -4354,6 +5062,24 @@ do
             Label.Text = Text
         end
 
+        Box.Focused:Connect(function()
+
+            if Input.Disabled then
+                return
+            end
+
+            TweenService:Create(BoxStroke, Library.TweenInfo, {
+                Color = Library.Scheme.AccentColor,
+            }):Play()
+        end)
+
+        Box.FocusLost:Connect(function()
+
+            TweenService:Create(BoxStroke, Library.TweenInfo, {
+                Color = Library.Scheme.OutlineColor,
+            }):Play()
+        end)
+					
         if Input.Finished then
             Box.FocusLost:Connect(function(Enter)
                 if not Enter then
@@ -6483,7 +7209,11 @@ function Library:CreateWindow(WindowInfo)
     local BottomBackground
     local FooterLabel
 
-    local InitialLeftWidth = math.ceil(WindowInfo.Size.X.Offset * 0.3)
+    local InitialLeftWidth = math.clamp(
+        math.ceil(WindowInfo.Size.X.Offset * 0.23),
+        165,
+        185
+    )
     local IsCompact = WindowInfo.SidebarCompacted
     local LastExpandedWidth = InitialLeftWidth
 
@@ -6519,7 +7249,7 @@ function Library:CreateWindow(WindowInfo)
         )
         Library:AddOutline(MainFrame)
         Library:MakeLine(MainFrame, {
-            Position = UDim2.fromOffset(0, 48),
+            Position = UDim2.fromOffset(0, 44),
             Size = UDim2.new(1, 0, 0, 1),
         })
 
@@ -6558,7 +7288,7 @@ function Library:CreateWindow(WindowInfo)
         --// Top Bar \\-
         local TopBar = New("Frame", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, 48),
+            Size = UDim2.new(1, 0, 0, 44),
             Parent = MainFrame,
         })
         Library:MakeDraggable(MainFrame, TopBar, false, true)
@@ -6812,7 +7542,7 @@ function Library:CreateWindow(WindowInfo)
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
             BackgroundColor3 = "BackgroundColor",
             CanvasSize = UDim2.fromScale(0, 0),
-            Position = UDim2.fromOffset(0, 49),
+            Position = UDim2.fromOffset(0, 45),
             ScrollBarThickness = 0,
             Size = UDim2.new(0, InitialLeftWidth, 1, -70),
             Parent = MainFrame,
@@ -6828,7 +7558,7 @@ function Library:CreateWindow(WindowInfo)
                 return Library:GetBetterColor(Library.Scheme.BackgroundColor, 1)
             end,
             Name = "Container",
-            Position = UDim2.new(1, 0, 0, 49),
+            Position = UDim2.new(1, 0, 0, 45),
             Size = UDim2.new(1, -InitialLeftWidth - 1, 1, -70),
             Parent = MainFrame,
         })
@@ -6986,6 +7716,7 @@ function Library:CreateWindow(WindowInfo)
         local TabButton: TextButton
         local TabLabel
         local TabIcon
+        local TabActiveBar
 
         local TabContainer
         local TabLeft
@@ -7000,6 +7731,25 @@ function Library:CreateWindow(WindowInfo)
                 Text = "",
                 Parent = Tabs,
             })
+
+			
+            TabActiveBar = New("Frame", {
+                BackgroundColor3 = "AccentColor",
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(0, 7),
+                Size = UDim2.new(0, 3, 1, -14),
+                ZIndex = TabButton.ZIndex + 1,
+                Parent = TabButton,
+            })
+
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = TabActiveBar,
+                })
+            )
+
             local ButtonPadding = New("UIPadding", {
                 PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
                 PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
@@ -7868,12 +8618,17 @@ end
                 return
             end
 
-            TweenService:Create(TabLabel, Library.TweenInfo, {
-                TextTransparency = Hovering and 0.25 or 0.5,
+            TweenService:Create(TabButton, Library.TweenInfo, {
+                BackgroundTransparency = Hovering and 0.7 or 1,
             }):Play()
+
+            TweenService:Create(TabLabel, Library.TweenInfo, {
+                TextTransparency = Hovering and 0.2 or 0.5,
+            }):Play()
+
             if TabIcon then
                 TweenService:Create(TabIcon, Library.TweenInfo, {
-                    ImageTransparency = Hovering and 0.25 or 0.5,
+                    ImageTransparency = Hovering and 0.2 or 0.5,
                 }):Play()
             end
         end
@@ -7884,11 +8639,17 @@ end
             end
 
             TweenService:Create(TabButton, Library.TweenInfo, {
+                BackgroundTransparency = 0.18,
+            }):Play()
+
+            TweenService:Create(TabActiveBar, Library.TweenInfo, {
                 BackgroundTransparency = 0,
             }):Play()
+
             TweenService:Create(TabLabel, Library.TweenInfo, {
                 TextTransparency = 0,
             }):Play()
+
             if TabIcon then
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = 0,
@@ -7913,9 +8674,15 @@ end
             TweenService:Create(TabButton, Library.TweenInfo, {
                 BackgroundTransparency = 1,
             }):Play()
+
+            TweenService:Create(TabActiveBar, Library.TweenInfo, {
+                BackgroundTransparency = 1,
+            }):Play()
+
             TweenService:Create(TabLabel, Library.TweenInfo, {
                 TextTransparency = 0.5,
             }):Play()
+
             if TabIcon then
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = 0.5,
@@ -8059,11 +8826,11 @@ end
         function Tab:AddKeyBox(Callback)
             assert(typeof(Callback) == "function", "Callback must be a function")
 
-            local Holder = New("Frame", {
-                BackgroundTransparency = 1,
-                Size = UDim2.new(0.75, 0, 0, 21),
-                Parent = TabContainer,
-            })
+        local Holder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 24),
+            Parent = Container,
+        })
 
             local Box = New("TextBox", {
                 BackgroundColor3 = "MainColor",
