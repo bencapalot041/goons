@@ -4819,7 +4819,623 @@ do
 
         return StatusList
     end
-				
+    function Funcs:AddPetMarketList(Idx, Info)
+
+        Info =
+            Info
+            or {}
+
+        local Groupbox =
+            self
+
+        local Container =
+            Groupbox.Container
+
+        local RowCount =
+            math.clamp(
+                tonumber(Info.Rows) or 8,
+                1,
+                16
+            )
+
+        local RowHeight =
+            tonumber(Info.RowHeight)
+            or 38
+
+        local SummaryHeight =
+            tonumber(Info.SummaryHeight)
+            or 20
+
+        local EmptyHeight =
+            tonumber(Info.EmptyHeight)
+            or 24
+
+        local Callback =
+            Info.Callback
+
+        local PetMarketList = {
+            Rows = {},
+            RowData = {},
+            SelectedIndex = nil,
+            Summary = tostring(Info.Summary or "Loading live pets..."),
+            EmptyText = tostring(Info.EmptyText or "No active pets."),
+            Visible = Info.Visible ~= false,
+            Type = "PetMarketList",
+        }
+
+        local Holder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, SummaryHeight + EmptyHeight + 6),
+            Visible = PetMarketList.Visible,
+            Parent = Container,
+        })
+
+        local SummaryLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, SummaryHeight),
+            Text = PetMarketList.Summary,
+            TextSize = 13,
+            TextTransparency = 0.18,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            Parent = Holder,
+        })
+
+        local RowsHolder = New("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(0, SummaryHeight + 4),
+            Size = UDim2.new(1, 0, 0, EmptyHeight),
+            Parent = Holder,
+        })
+
+        local EmptyLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, EmptyHeight),
+            Text = PetMarketList.EmptyText,
+            TextSize = 13,
+            TextTransparency = 0.55,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            Parent = RowsHolder,
+        })
+
+        local function ApplyRowPosition(row, index)
+
+            row.Holder.Position =
+                UDim2.new(
+                    0,
+                    0,
+                    0,
+                    (index - 1) * RowHeight
+                )
+
+            row.Holder.Size =
+                UDim2.new(
+                    1,
+                    0,
+                    0,
+                    RowHeight - 4
+                )
+        end
+
+        local function ReadState(data)
+
+            local state =
+                tostring(
+                    type(data) == "table"
+                    and data.State
+                    or "ready"
+                ):lower()
+
+            if state == "" then
+                state = "ready"
+            end
+
+            return state
+        end
+
+        local function ApplyRowVisual(row)
+
+            local data =
+                row.Data
+
+            local hasData =
+                type(data) == "table"
+
+            row.Holder.Visible =
+                hasData
+
+            if not hasData then
+                return
+            end
+
+            local state =
+                ReadState(data)
+
+            local selected =
+                row.Index == PetMarketList.SelectedIndex
+
+            local dimmed =
+                state == "sent"
+                or state == "gone"
+
+            row.Button.Active =
+                state ~= "sent"
+                and state ~= "gone"
+
+            row.Button.BackgroundTransparency =
+                selected and 0.10
+                or state == "buying" and 0.16
+                or 0.28
+
+            row.Stroke.Transparency =
+                selected and 0
+                or 0.30
+
+            row.Marker.BackgroundTransparency =
+                state == "sent" and 0.35
+                or state == "gone" and 0.15
+                or 0
+
+            row.Marker.BackgroundColor3 =
+                state == "gone" and Library.Scheme.RedColor
+                or state == "sent" and Library.Scheme.OutlineColor
+                or Library.Scheme.AccentColor
+
+            row.Dot.BackgroundColor3 =
+                row.Marker.BackgroundColor3
+
+            row.Dot.BackgroundTransparency =
+                dimmed and 0.45
+                or 0
+
+            row.Pet.TextTransparency =
+                dimmed and 0.48
+                or 0.02
+
+            row.Timer.TextTransparency =
+                dimmed and 0.55
+                or 0.18
+
+            row.Price.TextTransparency =
+                dimmed and 0.48
+                or 0.10
+
+            row.Distance.TextTransparency =
+                dimmed and 0.62
+                or 0.30
+
+            row.Action.TextTransparency =
+                dimmed and 0.50
+                or state == "buying" and 0
+                or 0.18
+
+            row.Action.TextColor3 =
+                state == "gone" and Library.Scheme.RedColor
+                or Library.Scheme.AccentColor
+
+            row.Action.Text =
+                state == "buying" and "BUYING"
+                or state == "sent" and "SENT"
+                or state == "gone" and "GONE"
+                or "BUY"
+        end
+
+        local function SetLabelText(label, text)
+
+            label.Text =
+                tostring(text or "")
+        end
+
+        local function CreateRow(rowIndex)
+
+            local RowButton = New("TextButton", {
+                BackgroundColor3 = "MainColor",
+                BackgroundTransparency = 0.28,
+                Position = UDim2.new(0, 0, 0, (rowIndex - 1) * RowHeight),
+                Size = UDim2.new(1, 0, 0, RowHeight - 4),
+                Text = "",
+                Visible = false,
+                Parent = RowsHolder,
+            })
+
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                    Parent = RowButton,
+                })
+            )
+
+            local Stroke = New("UIStroke", {
+                Color = "OutlineColor",
+                Transparency = 0.30,
+                Parent = RowButton,
+            })
+
+            local Marker = New("Frame", {
+                BackgroundColor3 = "AccentColor",
+                BackgroundTransparency = 0,
+                Position = UDim2.fromOffset(0, 0),
+                Size = UDim2.new(0, 3, 1, 0),
+                Parent = RowButton,
+            })
+
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                    Parent = Marker,
+                })
+            )
+
+            local Dot = New("Frame", {
+                BackgroundColor3 = "AccentColor",
+                Position = UDim2.fromOffset(10, 8),
+                Size = UDim2.fromOffset(6, 6),
+                Parent = RowButton,
+            })
+
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = Dot,
+                })
+            )
+
+            local PetLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(22, 2),
+                Size = UDim2.new(0.54, -22, 0, 16),
+                Text = "",
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowButton,
+            })
+
+            local TimerLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0.54, 0, 0, 2),
+                Size = UDim2.new(0.22, 0, 0, 16),
+                Text = "",
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowButton,
+            })
+
+            local PriceLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(22, 18),
+                Size = UDim2.new(0.44, -22, 0, 16),
+                Text = "",
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowButton,
+            })
+
+            local DistanceLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0.46, 0, 0, 18),
+                Size = UDim2.new(0.30, 0, 0, 16),
+                Text = "",
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowButton,
+            })
+
+            local ActionLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0.76, 0, 0, 0),
+                Size = UDim2.new(0.24, -8, 1, 0),
+                Text = "BUY",
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Right,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = RowButton,
+            })
+
+            local row = {
+                Index = rowIndex,
+                Holder = RowButton,
+                Button = RowButton,
+                Stroke = Stroke,
+                Marker = Marker,
+                Dot = Dot,
+                Pet = PetLabel,
+                Timer = TimerLabel,
+                Price = PriceLabel,
+                Distance = DistanceLabel,
+                Action = ActionLabel,
+                Data = nil,
+            }
+
+            RowButton.MouseEnter:Connect(function()
+
+                if row.Data == nil then
+                    return
+                end
+
+                local state =
+                    ReadState(row.Data)
+
+                if state == "sent"
+                or state == "gone" then
+                    return
+                end
+
+                if row.Index ~= PetMarketList.SelectedIndex then
+                    RowButton.BackgroundTransparency =
+                        0.18
+                end
+
+                Stroke.Transparency =
+                    0
+            end)
+
+            RowButton.MouseLeave:Connect(function()
+
+                ApplyRowVisual(
+                    row
+                )
+            end)
+
+            RowButton.MouseButton1Click:Connect(function()
+
+                if row.Data == nil then
+                    return
+                end
+
+                local state =
+                    ReadState(row.Data)
+
+                if state == "sent"
+                or state == "gone" then
+                    return
+                end
+
+                PetMarketList:SetSelected(
+                    rowIndex
+                )
+
+                if typeof(Callback) == "function" then
+
+                    Library:SafeCallback(
+                        Callback,
+                        rowIndex,
+                        row.Data
+                    )
+                end
+            end)
+
+            ApplyRowPosition(
+                row,
+                rowIndex
+            )
+
+            ApplyRowVisual(
+                row
+            )
+
+            return row
+        end
+
+        for rowIndex = 1, RowCount do
+
+            table.insert(
+                PetMarketList.Rows,
+                CreateRow(rowIndex)
+            )
+        end
+
+        function PetMarketList:Resize()
+
+            local visibleRows =
+                math.min(
+                    #PetMarketList.RowData,
+                    RowCount
+                )
+
+            local rowsHeight =
+                visibleRows > 0
+                and (visibleRows * RowHeight)
+                or EmptyHeight
+
+            Holder.Size =
+                UDim2.new(
+                    1,
+                    0,
+                    0,
+                    SummaryHeight + rowsHeight + 6
+                )
+
+            RowsHolder.Position =
+                UDim2.fromOffset(
+                    0,
+                    SummaryHeight + 4
+                )
+
+            RowsHolder.Size =
+                UDim2.new(
+                    1,
+                    0,
+                    0,
+                    rowsHeight
+                )
+
+            EmptyLabel.Size =
+                UDim2.new(
+                    1,
+                    0,
+                    0,
+                    EmptyHeight
+                )
+
+            for index, row in ipairs(PetMarketList.Rows) do
+
+                ApplyRowPosition(
+                    row,
+                    index
+                )
+            end
+
+            Groupbox:Resize()
+        end
+
+        function PetMarketList:SetSummary(text)
+
+            PetMarketList.Summary =
+                tostring(text or "")
+
+            SummaryLabel.Text =
+                PetMarketList.Summary
+        end
+
+        function PetMarketList:SetRows(rows)
+
+            rows =
+                rows
+                or {}
+
+            PetMarketList.RowData =
+                rows
+
+            EmptyLabel.Visible =
+                #rows <= 0
+
+            for index, row in ipairs(PetMarketList.Rows) do
+
+                local data =
+                    rows[index]
+
+                row.Data =
+                    data
+
+                if type(data) == "table" then
+
+                    SetLabelText(
+                        row.Pet,
+                        data.Pet
+                        or data.Name
+                        or data.PetName
+                        or "?"
+                    )
+
+                    SetLabelText(
+                        row.Timer,
+                        data.Timer
+                        or data.Time
+                        or "?"
+                    )
+
+                    SetLabelText(
+                        row.Price,
+                        data.Price
+                        or data.Cost
+                        or "?"
+                    )
+
+                    SetLabelText(
+                        row.Distance,
+                        tostring(
+                            data.Distance
+                            or data.Dist
+                            or "?"
+                        )
+                        .. (
+                            tostring(data.Distance or data.Dist or ""):find("stud")
+                            and ""
+                            or " studs"
+                        )
+                    )
+
+                else
+
+                    SetLabelText(row.Pet, "")
+                    SetLabelText(row.Timer, "")
+                    SetLabelText(row.Price, "")
+                    SetLabelText(row.Distance, "")
+                end
+
+                ApplyRowVisual(
+                    row
+                )
+            end
+
+            PetMarketList:Resize()
+        end
+
+        function PetMarketList:SetSelected(index)
+
+            PetMarketList.SelectedIndex =
+                tonumber(index)
+
+            for _, row in ipairs(PetMarketList.Rows) do
+
+                ApplyRowVisual(
+                    row
+                )
+            end
+        end
+
+        function PetMarketList:SetState(index, state)
+
+            index =
+                tonumber(index)
+
+            local row =
+                index
+                and PetMarketList.Rows[index]
+                or nil
+
+            if not row
+            or type(row.Data) ~= "table" then
+                return
+            end
+
+            row.Data.State =
+                tostring(state or "ready")
+
+            ApplyRowVisual(
+                row
+            )
+        end
+
+        function PetMarketList:SetVisible(visible)
+
+            PetMarketList.Visible =
+                visible == true
+
+            Holder.Visible =
+                PetMarketList.Visible
+
+            Groupbox:Resize()
+        end
+
+        PetMarketList.Holder =
+            Holder
+
+        table.insert(
+            Groupbox.Elements,
+            PetMarketList
+        )
+
+        Options[Idx] =
+            PetMarketList
+
+        PetMarketList:SetRows(
+            Info.RowsData
+            or {}
+        )
+
+        Groupbox:Resize()
+
+        return PetMarketList
+    end
+
     function Funcs:AddCheckbox(Idx, Info)
         Info = Library:Validate(Info, Templates.Toggle)
 
