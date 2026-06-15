@@ -210,12 +210,17 @@ local Library = {
     CantDragForced = false,
 
     -- Groupbox reorder
-    -- Drag groupbox header to reorder inside the same left/right column.
+    -- Drag groupbox header, preview drop slot, commit order on release.
     GroupboxDragEnabled = true,
+    GroupboxDragMode = "Release",
     GroupboxDragThreshold = 9,
     GroupboxDragDebug = false,
+    GroupboxGhostEnabled = true,
+    GroupboxDropIndicatorEnabled = true,
     GroupboxOrders = {},
     GroupboxOrderChanged = nil,
+    GroupboxDragGhost = nil,
+    GroupboxDropIndicator = nil,
 
     Signals = {},
     UnloadSignals = {},
@@ -1672,6 +1677,343 @@ function Library:SaveGroupboxOrderFor(Tab, SideName)
     end
 end
 
+function Library:GetGroupboxDropPreview(Groupbox, MouseY)
+    if type(Groupbox) ~= "table" then
+        return nil
+    end
+
+    local Tab =
+        Groupbox.Tab
+
+    local SideName =
+        tostring(Groupbox.SideName or "Left")
+
+    local SideList =
+        Library:GetGroupboxSideList(
+            Tab,
+            SideName
+        )
+
+    if type(SideList) ~= "table"
+    or #SideList <= 1 then
+        return nil
+    end
+
+    local Ordered =
+        {}
+
+    for _, OtherGroupbox in ipairs(SideList) do
+        if OtherGroupbox ~= Groupbox then
+            table.insert(
+                Ordered,
+                OtherGroupbox
+            )
+        end
+    end
+
+    table.sort(Ordered, function(A, B)
+        return tonumber(
+            A
+            and A.BoxHolder
+            and A.BoxHolder.LayoutOrder
+            or A.CreatedOrder
+            or 0
+        )
+        < tonumber(
+            B
+            and B.BoxHolder
+            and B.BoxHolder.LayoutOrder
+            or B.CreatedOrder
+            or 0
+        )
+    end)
+
+    local InsertIndex =
+        #Ordered + 1
+
+    MouseY =
+        tonumber(MouseY)
+        or 0
+
+    for Index, OtherGroupbox in ipairs(Ordered) do
+        local Holder =
+            OtherGroupbox
+            and OtherGroupbox.BoxHolder
+
+        if Holder then
+            local MidY =
+                Holder.AbsolutePosition.Y
+                + (
+                    Holder.AbsoluteSize.Y / 2
+                )
+
+            if MouseY < MidY then
+                InsertIndex =
+                    Index
+
+                break
+            end
+        end
+    end
+
+    local ReferenceHolder =
+        nil
+
+    local IndicatorY =
+        nil
+
+    if InsertIndex <= #Ordered then
+
+        ReferenceHolder =
+            Ordered[InsertIndex]
+            and Ordered[InsertIndex].BoxHolder
+
+        if ReferenceHolder then
+
+            IndicatorY =
+                ReferenceHolder.AbsolutePosition.Y
+                - 5
+        end
+
+    elseif #Ordered > 0 then
+
+        ReferenceHolder =
+            Ordered[#Ordered]
+            and Ordered[#Ordered].BoxHolder
+
+        if ReferenceHolder then
+
+            IndicatorY =
+                ReferenceHolder.AbsolutePosition.Y
+                + ReferenceHolder.AbsoluteSize.Y
+                + 5
+        end
+    end
+
+    local SourceHolder =
+        Groupbox.BoxHolder
+
+    if not SourceHolder then
+        return nil
+    end
+
+    if not IndicatorY then
+        IndicatorY =
+            SourceHolder.AbsolutePosition.Y
+    end
+
+    return {
+        InsertIndex = InsertIndex,
+        SideName = SideName,
+        X = SourceHolder.AbsolutePosition.X + 8,
+        Y = IndicatorY,
+        Width = math.max(
+            24,
+            SourceHolder.AbsoluteSize.X - 16
+        ),
+    }
+end
+
+function Library:GetGroupboxDropIndicator()
+    if Library.GroupboxDropIndicator
+    and Library.GroupboxDropIndicator.Parent then
+        return Library.GroupboxDropIndicator
+    end
+
+    local Indicator =
+        New("Frame", {
+            BackgroundColor3 = "AccentColor",
+            BorderSizePixel = 0,
+            Position = UDim2.fromOffset(0, 0),
+            Size = UDim2.fromOffset(100, 2),
+            Visible = false,
+            ZIndex = 12000,
+            Parent = ScreenGui,
+        })
+
+    table.insert(
+        Library.Corners,
+        New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = Indicator,
+        })
+    )
+
+    Library.GroupboxDropIndicator =
+        Indicator
+
+    return Indicator
+end
+
+function Library:ShowGroupboxDropIndicator(Groupbox, MouseY)
+    if Library.GroupboxDropIndicatorEnabled ~= true then
+        return
+    end
+
+    local Preview =
+        Library:GetGroupboxDropPreview(
+            Groupbox,
+            MouseY
+        )
+
+    local Indicator =
+        Library:GetGroupboxDropIndicator()
+
+    if not Preview
+    or not Indicator then
+
+        if Indicator then
+            Indicator.Visible =
+                false
+        end
+
+        return
+    end
+
+    Indicator.Position =
+        UDim2.fromOffset(
+            math.floor(Preview.X),
+            math.floor(Preview.Y)
+        )
+
+    Indicator.Size =
+        UDim2.fromOffset(
+            math.floor(Preview.Width),
+            2
+        )
+
+    Indicator.Visible =
+        true
+end
+
+function Library:HideGroupboxDropIndicator()
+    if Library.GroupboxDropIndicator then
+        Library.GroupboxDropIndicator.Visible =
+            false
+    end
+end
+
+function Library:CreateGroupboxDragGhost(Groupbox, StartPosition)
+    if Library.GroupboxGhostEnabled ~= true then
+        return
+    end
+
+    if Library.GroupboxDragGhost
+    and Library.GroupboxDragGhost.Parent then
+        Library.GroupboxDragGhost:Destroy()
+    end
+
+    local SourceHolder =
+        Groupbox
+        and Groupbox.BoxHolder
+
+    local Width =
+        SourceHolder
+        and SourceHolder.AbsoluteSize.X
+        or 220
+
+    local Ghost =
+        New("Frame", {
+            BackgroundColor3 = "BackgroundColor",
+            BackgroundTransparency = 0.04,
+            BorderSizePixel = 0,
+            Position = UDim2.fromOffset(
+                math.floor(StartPosition.X + 12),
+                math.floor(StartPosition.Y + 10)
+            ),
+            Size = UDim2.fromOffset(
+                math.max(180, math.floor(Width)),
+                34
+            ),
+            ZIndex = 12001,
+            Parent = ScreenGui,
+        })
+
+    table.insert(
+        Library.Corners,
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius),
+            Parent = Ghost,
+        })
+    )
+
+    Library:AddOutline(
+        Ghost
+    )
+
+    New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(10, 0),
+        Size = UDim2.new(1, -20, 1, 0),
+        Text =
+            "☰ "
+            .. tostring(
+                Groupbox
+                and Groupbox.Name
+                or "Groupbox"
+            ),
+        TextSize = 14,
+        TextTransparency = 0.05,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = Ghost.ZIndex + 1,
+        Parent = Ghost,
+    })
+
+    Library.GroupboxDragGhost =
+        Ghost
+end
+
+function Library:UpdateGroupboxDragGhost(Position)
+    local Ghost =
+        Library.GroupboxDragGhost
+
+    if not Ghost
+    or not Ghost.Parent then
+        return
+    end
+
+    Ghost.Position =
+        UDim2.fromOffset(
+            math.floor(Position.X + 12),
+            math.floor(Position.Y + 10)
+        )
+end
+
+function Library:DestroyGroupboxDragGhost()
+    if Library.GroupboxDragGhost then
+
+        pcall(function()
+
+            Library.GroupboxDragGhost:Destroy()
+        end)
+
+        Library.GroupboxDragGhost =
+            nil
+    end
+end
+
+function Library:CommitGroupboxDrop(Groupbox, MouseY)
+    local Changed =
+        Library:MoveGroupboxInSide(
+            Groupbox,
+            MouseY,
+            true
+        )
+
+    if Changed == true
+    and Library.GroupboxDragDebug == true then
+
+        print(
+            "[OBSIDIAN GROUPBOX DRAG]",
+            "committed",
+            tostring(Groupbox and Groupbox.Name),
+            tostring(Groupbox and Groupbox.SideName)
+        )
+    end
+
+    return Changed
+end
+
 function Library:MoveGroupboxInSide(Groupbox, MouseY, SaveNow)
     if type(Groupbox) ~= "table" then
         return false
@@ -1873,6 +2215,9 @@ function Library:EnableGroupboxReorder(Groupbox)
         local StartPosition =
             Input.Position
 
+        local CurrentPosition =
+            StartPosition
+
         local CurrentY =
             StartPosition.Y
 
@@ -1882,7 +2227,7 @@ function Library:EnableGroupboxReorder(Groupbox)
         local Moved =
             false
 
-        local LastMoveAt =
+        local LastPreviewAt =
             0
 
         local InputChangedConnection =
@@ -1890,6 +2235,48 @@ function Library:EnableGroupboxReorder(Groupbox)
 
         local InputEndedConnection =
             nil
+
+        local function StartDragPreview()
+            if Moved == true then
+                return
+            end
+
+            Moved =
+                true
+
+            Groupbox.__DraggingMoved =
+                true
+
+            Library:SetGroupboxSideScrolling(
+                Groupbox.Tab,
+                false
+            )
+
+            if Groupbox.Holder then
+                Groupbox.Holder.BackgroundTransparency =
+                    0.16
+            end
+
+            Library:CreateGroupboxDragGhost(
+                Groupbox,
+                CurrentPosition
+            )
+
+            Library:ShowGroupboxDropIndicator(
+                Groupbox,
+                CurrentY
+            )
+
+            if Library.GroupboxDragDebug == true then
+
+                print(
+                    "[OBSIDIAN GROUPBOX DRAG]",
+                    "preview started",
+                    tostring(Groupbox.Name),
+                    tostring(Groupbox.SideName)
+                )
+            end
+        end
 
         local function StopDrag()
             if Dragging ~= true then
@@ -1919,28 +2306,32 @@ function Library:EnableGroupboxReorder(Groupbox)
                     0
             end
 
+            Library:HideGroupboxDropIndicator()
+            Library:DestroyGroupboxDragGhost()
+
             if Moved == true then
 
                 Groupbox.__DraggingMoved =
                     true
 
-                Library:SaveGroupboxOrderFor(
-                    Groupbox.Tab,
-                    Groupbox.SideName
+                Library:CommitGroupboxDrop(
+                    Groupbox,
+                    CurrentY
                 )
 
                 if Library.GroupboxDragDebug == true then
 
                     print(
                         "[OBSIDIAN GROUPBOX DRAG]",
-                        "saved order",
-                        tostring(Groupbox.Tab and Groupbox.Tab.Name),
-                        tostring(Groupbox.SideName)
+                        "released",
+                        tostring(Groupbox.Name),
+                        "| y:",
+                        tostring(math.floor(CurrentY))
                     )
                 end
             end
 
-            task.delay(0.08, function()
+            task.delay(0.10, function()
 
                 if Groupbox then
                     Groupbox.__DraggingMoved =
@@ -1958,6 +2349,9 @@ function Library:EnableGroupboxReorder(Groupbox)
                 if not IsHoverInput(ChangedInput) then
                     return
                 end
+
+                CurrentPosition =
+                    ChangedInput.Position
 
                 CurrentY =
                     ChangedInput.Position.Y
@@ -1977,43 +2371,22 @@ function Library:EnableGroupboxReorder(Groupbox)
                 if Moved ~= true
                 and Distance >= tonumber(Library.GroupboxDragThreshold or 9) then
 
-                    Moved =
-                        true
-
-                    Groupbox.__DraggingMoved =
-                        true
-
-                    Library:SetGroupboxSideScrolling(
-                        Groupbox.Tab,
-                        false
-                    )
-
-                    if Groupbox.Holder then
-                        Groupbox.Holder.BackgroundTransparency =
-                            0.08
-                    end
-
-                    if Library.GroupboxDragDebug == true then
-
-                        print(
-                            "[OBSIDIAN GROUPBOX DRAG]",
-                            "started",
-                            tostring(Groupbox.Name),
-                            tostring(Groupbox.SideName)
-                        )
-                    end
+                    StartDragPreview()
                 end
 
                 if Moved == true
-                and os.clock() - LastMoveAt >= 0.03 then
+                and os.clock() - LastPreviewAt >= 0.015 then
 
-                    LastMoveAt =
+                    LastPreviewAt =
                         os.clock()
 
-                    Library:MoveGroupboxInSide(
+                    Library:UpdateGroupboxDragGhost(
+                        CurrentPosition
+                    )
+
+                    Library:ShowGroupboxDropIndicator(
                         Groupbox,
-                        CurrentY,
-                        false
+                        CurrentY
                     )
                 end
             end)
