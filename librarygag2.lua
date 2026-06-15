@@ -213,6 +213,7 @@ local Library = {
     -- Drag groupbox header to reorder inside the same left/right column.
     GroupboxDragEnabled = true,
     GroupboxDragThreshold = 9,
+    GroupboxDragDebug = false,
     GroupboxOrders = {},
     GroupboxOrderChanged = nil,
 
@@ -1671,9 +1672,9 @@ function Library:SaveGroupboxOrderFor(Tab, SideName)
     end
 end
 
-function Library:MoveGroupboxInSide(Groupbox, MouseY)
+function Library:MoveGroupboxInSide(Groupbox, MouseY, SaveNow)
     if type(Groupbox) ~= "table" then
-        return
+        return false
     end
 
     local Tab =
@@ -1690,7 +1691,7 @@ function Library:MoveGroupboxInSide(Groupbox, MouseY)
 
     if type(SideList) ~= "table"
     or #SideList <= 1 then
-        return
+        return false
     end
 
     table.sort(SideList, function(A, B)
@@ -1710,8 +1711,14 @@ function Library:MoveGroupboxInSide(Groupbox, MouseY)
         )
     end)
 
-    for Index = #SideList, 1, -1 do
-        if SideList[Index] == Groupbox then
+    local CurrentIndex =
+        nil
+
+    for Index, OtherGroupbox in ipairs(SideList) do
+        if OtherGroupbox == Groupbox then
+            CurrentIndex =
+                Index
+
             table.remove(
                 SideList,
                 Index
@@ -1721,8 +1728,16 @@ function Library:MoveGroupboxInSide(Groupbox, MouseY)
         end
     end
 
+    if not CurrentIndex then
+        return false
+    end
+
     local InsertIndex =
         #SideList + 1
+
+    MouseY =
+        tonumber(MouseY)
+        or 0
 
     for Index, OtherGroupbox in ipairs(SideList) do
         local Holder =
@@ -1751,23 +1766,52 @@ function Library:MoveGroupboxInSide(Groupbox, MouseY)
         Groupbox
     )
 
+    local Changed =
+        CurrentIndex ~= InsertIndex
+
     for Index, OrderedGroupbox in ipairs(SideList) do
         if OrderedGroupbox
         and OrderedGroupbox.BoxHolder then
+
             OrderedGroupbox.BoxHolder.LayoutOrder =
                 Index * 10
         end
     end
 
-    Library:SaveGroupboxOrderFor(
-        Tab,
-        SideName
-    )
+    if Changed == true
+    and Library.GroupboxDragDebug == true then
+
+        print(
+            "[OBSIDIAN GROUPBOX DRAG]",
+            "moved",
+            tostring(Groupbox.Name),
+            "| side:",
+            tostring(SideName),
+            "| from:",
+            tostring(CurrentIndex),
+            "| to:",
+            tostring(InsertIndex)
+        )
+    end
+
+    if SaveNow ~= false then
+
+        Library:SaveGroupboxOrderFor(
+            Tab,
+            SideName
+        )
+    end
 
     if Tab
     and type(Tab.RefreshSides) == "function" then
-        Tab:RefreshSides()
+
+        task.defer(function()
+
+            Tab:RefreshSides()
+        end)
     end
+
+    return Changed
 end
 
 function Library:SetGroupboxSideScrolling(Tab, Enabled)
@@ -1804,6 +1848,15 @@ function Library:EnableGroupboxReorder(Groupbox)
     Groupbox.__ReorderEnabled =
         true
 
+    HeaderButton.Active =
+        true
+
+    HeaderButton.Selectable =
+        false
+
+    HeaderButton.AutoButtonColor =
+        false
+
     HeaderButton.InputBegan:Connect(function(Input)
         if Library.GroupboxDragEnabled ~= true then
             return
@@ -1817,11 +1870,11 @@ function Library:EnableGroupboxReorder(Groupbox)
             return
         end
 
-        local StartMouse =
-            Vector2.new(
-                Mouse.X,
-                Mouse.Y
-            )
+        local StartPosition =
+            Input.Position
+
+        local CurrentY =
+            StartPosition.Y
 
         local Dragging =
             true
@@ -1829,43 +1882,101 @@ function Library:EnableGroupboxReorder(Groupbox)
         local Moved =
             false
 
-        local EndConnection =
+        local LastMoveAt =
+            0
+
+        local InputChangedConnection =
             nil
 
-        EndConnection =
-            Input.Changed:Connect(function()
-                if Input.UserInputState ~= Enum.UserInputState.End then
+        local InputEndedConnection =
+            nil
+
+        local function StopDrag()
+            if Dragging ~= true then
+                return
+            end
+
+            Dragging =
+                false
+
+            if InputChangedConnection
+            and InputChangedConnection.Connected then
+                InputChangedConnection:Disconnect()
+            end
+
+            if InputEndedConnection
+            and InputEndedConnection.Connected then
+                InputEndedConnection:Disconnect()
+            end
+
+            Library:SetGroupboxSideScrolling(
+                Groupbox.Tab,
+                true
+            )
+
+            if Groupbox.Holder then
+                Groupbox.Holder.BackgroundTransparency =
+                    0
+            end
+
+            if Moved == true then
+
+                Groupbox.__DraggingMoved =
+                    true
+
+                Library:SaveGroupboxOrderFor(
+                    Groupbox.Tab,
+                    Groupbox.SideName
+                )
+
+                if Library.GroupboxDragDebug == true then
+
+                    print(
+                        "[OBSIDIAN GROUPBOX DRAG]",
+                        "saved order",
+                        tostring(Groupbox.Tab and Groupbox.Tab.Name),
+                        tostring(Groupbox.SideName)
+                    )
+                end
+            end
+
+            task.delay(0.08, function()
+
+                if Groupbox then
+                    Groupbox.__DraggingMoved =
+                        false
+                end
+            end)
+        end
+
+        InputChangedConnection =
+            UserInputService.InputChanged:Connect(function(ChangedInput)
+                if Dragging ~= true then
                     return
                 end
 
-                Dragging =
-                    false
-
-                if EndConnection
-                and EndConnection.Connected then
-                    EndConnection:Disconnect()
+                if not IsHoverInput(ChangedInput) then
+                    return
                 end
-            end)
 
-        task.spawn(function()
-            while Dragging == true
-            and Library.Unloaded ~= true
-            and ScreenGui
-            and ScreenGui.Parent do
-                local CurrentMouse =
-                    Vector2.new(
-                        Mouse.X,
-                        Mouse.Y
-                    )
+                CurrentY =
+                    ChangedInput.Position.Y
 
                 local Distance =
                     (
-                        CurrentMouse
-                        - StartMouse
+                        Vector2.new(
+                            ChangedInput.Position.X,
+                            ChangedInput.Position.Y
+                        )
+                        - Vector2.new(
+                            StartPosition.X,
+                            StartPosition.Y
+                        )
                     ).Magnitude
 
                 if Moved ~= true
                 and Distance >= tonumber(Library.GroupboxDragThreshold or 9) then
+
                     Moved =
                         true
 
@@ -1881,31 +1992,48 @@ function Library:EnableGroupboxReorder(Groupbox)
                         Groupbox.Holder.BackgroundTransparency =
                             0.08
                     end
+
+                    if Library.GroupboxDragDebug == true then
+
+                        print(
+                            "[OBSIDIAN GROUPBOX DRAG]",
+                            "started",
+                            tostring(Groupbox.Name),
+                            tostring(Groupbox.SideName)
+                        )
+                    end
                 end
 
-                RunService.RenderStepped:Wait()
-            end
+                if Moved == true
+                and os.clock() - LastMoveAt >= 0.03 then
 
-            if EndConnection
-            and EndConnection.Connected then
-                EndConnection:Disconnect()
-            end
+                    LastMoveAt =
+                        os.clock()
 
-            Library:SetGroupboxSideScrolling(
-                Groupbox.Tab,
-                true
-            )
+                    Library:MoveGroupboxInSide(
+                        Groupbox,
+                        CurrentY,
+                        false
+                    )
+                end
+            end)
 
-            if Groupbox.Holder then
-                Groupbox.Holder.BackgroundTransparency =
-                    0
-            end
+        InputEndedConnection =
+            UserInputService.InputEnded:Connect(function(EndedInput)
+                if Dragging ~= true then
+                    return
+                end
 
-            if Moved == true then
-                Library:MoveGroupboxInSide(
-                    Groupbox,
-                    Mouse.Y
-                )
+                if EndedInput.UserInputType == Enum.UserInputType.MouseButton1
+                or EndedInput.UserInputType == Enum.UserInputType.Touch then
+
+                    StopDrag()
+                end
+            end)
+
+        Input.Changed:Connect(function()
+            if Input.UserInputState == Enum.UserInputState.End then
+                StopDrag()
             end
         end)
     end)
