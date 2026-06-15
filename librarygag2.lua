@@ -209,6 +209,13 @@ local Library = {
 
     CantDragForced = false,
 
+    -- Groupbox reorder
+    -- Drag groupbox header to reorder inside the same left/right column.
+    GroupboxDragEnabled = true,
+    GroupboxDragThreshold = 9,
+    GroupboxOrders = {},
+    GroupboxOrderChanged = nil,
+
     Signals = {},
     UnloadSignals = {},
 
@@ -1480,6 +1487,428 @@ function Library:MakeResizable(UI: GuiObject, DragFrame: GuiObject, Callback: ()
             end
         end
     end))
+end
+
+function Library:GetGroupboxSideList(Tab, SideName)
+    if type(Tab) ~= "table" then
+        return nil
+    end
+
+    Tab.GroupboxOrder =
+        Tab.GroupboxOrder
+        or {
+            Left = {},
+            Right = {},
+        }
+
+    SideName =
+        tostring(SideName or "Left")
+
+    if SideName ~= "Right" then
+        SideName =
+            "Left"
+    end
+
+    Tab.GroupboxOrder[SideName] =
+        Tab.GroupboxOrder[SideName]
+        or {}
+
+    return Tab.GroupboxOrder[SideName]
+end
+
+function Library:GetGroupboxOrderBucket(Tab, SideName)
+    if type(Tab) ~= "table" then
+        return nil, ""
+    end
+
+    local TabName =
+        tostring(Tab.Name or "Tab")
+
+    SideName =
+        tostring(SideName or "Left")
+
+    if SideName ~= "Right" then
+        SideName =
+            "Left"
+    end
+
+    local Key =
+        TabName
+        .. "/"
+        .. SideName
+
+    local Orders =
+        Library.GroupboxOrders
+
+    if type(Orders) ~= "table" then
+        Library.GroupboxOrders = {}
+        Orders = Library.GroupboxOrders
+    end
+
+    if type(Orders[Key]) ~= "table" then
+        Orders[Key] = {}
+    end
+
+    return Orders[Key],
+        Key
+end
+
+function Library:RefreshGroupboxOrder(Tab, SideName)
+    local SideList =
+        Library:GetGroupboxSideList(
+            Tab,
+            SideName
+        )
+
+    if type(SideList) ~= "table" then
+        return
+    end
+
+    local SavedList =
+        Library:GetGroupboxOrderBucket(
+            Tab,
+            SideName
+        )
+
+    local SavedIndex =
+        {}
+
+    if type(SavedList) == "table" then
+        for Index, Name in ipairs(SavedList) do
+            SavedIndex[tostring(Name)] =
+                Index
+        end
+    end
+
+    table.sort(SideList, function(A, B)
+        local AName =
+            tostring(A and A.Name or "")
+
+        local BName =
+            tostring(B and B.Name or "")
+
+        local AIndex =
+            SavedIndex[AName]
+            or (
+                1000000
+                + tonumber(A and A.CreatedOrder or 0)
+            )
+
+        local BIndex =
+            SavedIndex[BName]
+            or (
+                1000000
+                + tonumber(B and B.CreatedOrder or 0)
+            )
+
+        if AIndex ~= BIndex then
+            return AIndex < BIndex
+        end
+
+        return AName < BName
+    end)
+
+    for Index, Groupbox in ipairs(SideList) do
+        if Groupbox
+        and Groupbox.BoxHolder then
+            Groupbox.BoxHolder.LayoutOrder =
+                Index * 10
+        end
+    end
+end
+
+function Library:SaveGroupboxOrderFor(Tab, SideName)
+    local SideList =
+        Library:GetGroupboxSideList(
+            Tab,
+            SideName
+        )
+
+    if type(SideList) ~= "table" then
+        return
+    end
+
+    table.sort(SideList, function(A, B)
+        return tonumber(
+            A
+            and A.BoxHolder
+            and A.BoxHolder.LayoutOrder
+            or A.CreatedOrder
+            or 0
+        )
+        < tonumber(
+            B
+            and B.BoxHolder
+            and B.BoxHolder.LayoutOrder
+            or B.CreatedOrder
+            or 0
+        )
+    end)
+
+    local Bucket =
+        Library:GetGroupboxOrderBucket(
+            Tab,
+            SideName
+        )
+
+    table.clear(Bucket)
+
+    for _, Groupbox in ipairs(SideList) do
+        if Groupbox
+        and tostring(Groupbox.Name or "") ~= "" then
+            table.insert(
+                Bucket,
+                tostring(Groupbox.Name)
+            )
+        end
+    end
+
+    if type(Library.GroupboxOrderChanged) == "function" then
+        Library:SafeCallback(
+            Library.GroupboxOrderChanged,
+            Library.GroupboxOrders
+        )
+    end
+end
+
+function Library:MoveGroupboxInSide(Groupbox, MouseY)
+    if type(Groupbox) ~= "table" then
+        return
+    end
+
+    local Tab =
+        Groupbox.Tab
+
+    local SideName =
+        tostring(Groupbox.SideName or "Left")
+
+    local SideList =
+        Library:GetGroupboxSideList(
+            Tab,
+            SideName
+        )
+
+    if type(SideList) ~= "table"
+    or #SideList <= 1 then
+        return
+    end
+
+    table.sort(SideList, function(A, B)
+        return tonumber(
+            A
+            and A.BoxHolder
+            and A.BoxHolder.LayoutOrder
+            or A.CreatedOrder
+            or 0
+        )
+        < tonumber(
+            B
+            and B.BoxHolder
+            and B.BoxHolder.LayoutOrder
+            or B.CreatedOrder
+            or 0
+        )
+    end)
+
+    for Index = #SideList, 1, -1 do
+        if SideList[Index] == Groupbox then
+            table.remove(
+                SideList,
+                Index
+            )
+
+            break
+        end
+    end
+
+    local InsertIndex =
+        #SideList + 1
+
+    for Index, OtherGroupbox in ipairs(SideList) do
+        local Holder =
+            OtherGroupbox
+            and OtherGroupbox.BoxHolder
+
+        if Holder then
+            local MidY =
+                Holder.AbsolutePosition.Y
+                + (
+                    Holder.AbsoluteSize.Y / 2
+                )
+
+            if MouseY < MidY then
+                InsertIndex =
+                    Index
+
+                break
+            end
+        end
+    end
+
+    table.insert(
+        SideList,
+        InsertIndex,
+        Groupbox
+    )
+
+    for Index, OrderedGroupbox in ipairs(SideList) do
+        if OrderedGroupbox
+        and OrderedGroupbox.BoxHolder then
+            OrderedGroupbox.BoxHolder.LayoutOrder =
+                Index * 10
+        end
+    end
+
+    Library:SaveGroupboxOrderFor(
+        Tab,
+        SideName
+    )
+
+    if Tab
+    and type(Tab.RefreshSides) == "function" then
+        Tab:RefreshSides()
+    end
+end
+
+function Library:SetGroupboxSideScrolling(Tab, Enabled)
+    if type(Tab) ~= "table"
+    or type(Tab.Sides) ~= "table" then
+        return
+    end
+
+    for _, Side in Tab.Sides do
+        if Side
+        and Side:IsA("ScrollingFrame") then
+            Side.ScrollingEnabled =
+                Enabled == true
+        end
+    end
+end
+
+function Library:EnableGroupboxReorder(Groupbox)
+    if type(Groupbox) ~= "table" then
+        return
+    end
+
+    if Groupbox.__ReorderEnabled == true then
+        return
+    end
+
+    local HeaderButton =
+        Groupbox.HeaderButton
+
+    if not HeaderButton then
+        return
+    end
+
+    Groupbox.__ReorderEnabled =
+        true
+
+    HeaderButton.InputBegan:Connect(function(Input)
+        if Library.GroupboxDragEnabled ~= true then
+            return
+        end
+
+        if Library.Searching == true then
+            return
+        end
+
+        if not IsClickInput(Input) then
+            return
+        end
+
+        local StartMouse =
+            Vector2.new(
+                Mouse.X,
+                Mouse.Y
+            )
+
+        local Dragging =
+            true
+
+        local Moved =
+            false
+
+        local EndConnection =
+            nil
+
+        EndConnection =
+            Input.Changed:Connect(function()
+                if Input.UserInputState ~= Enum.UserInputState.End then
+                    return
+                end
+
+                Dragging =
+                    false
+
+                if EndConnection
+                and EndConnection.Connected then
+                    EndConnection:Disconnect()
+                end
+            end)
+
+        task.spawn(function()
+            while Dragging == true
+            and Library.Unloaded ~= true
+            and ScreenGui
+            and ScreenGui.Parent do
+                local CurrentMouse =
+                    Vector2.new(
+                        Mouse.X,
+                        Mouse.Y
+                    )
+
+                local Distance =
+                    (
+                        CurrentMouse
+                        - StartMouse
+                    ).Magnitude
+
+                if Moved ~= true
+                and Distance >= tonumber(Library.GroupboxDragThreshold or 9) then
+                    Moved =
+                        true
+
+                    Groupbox.__DraggingMoved =
+                        true
+
+                    Library:SetGroupboxSideScrolling(
+                        Groupbox.Tab,
+                        false
+                    )
+
+                    if Groupbox.Holder then
+                        Groupbox.Holder.BackgroundTransparency =
+                            0.08
+                    end
+                end
+
+                RunService.RenderStepped:Wait()
+            end
+
+            if EndConnection
+            and EndConnection.Connected then
+                EndConnection:Disconnect()
+            end
+
+            Library:SetGroupboxSideScrolling(
+                Groupbox.Tab,
+                true
+            )
+
+            if Groupbox.Holder then
+                Groupbox.Holder.BackgroundTransparency =
+                    0
+            end
+
+            if Moved == true then
+                Library:MoveGroupboxInSide(
+                    Groupbox,
+                    Mouse.Y
+                )
+            end
+        end)
+    end)
 end
 
 function Library:MakeCover(Holder: GuiObject, Place: string)
@@ -8908,9 +9337,14 @@ function Library:CreateWindow(WindowInfo)
 
         --// Tab Table \\--
         local Tab = {
+            Name = Name,
             Groupboxes = {},
             Tabboxes = {},
             DependencyGroupboxes = {},
+            GroupboxOrder = {
+                Left = {},
+                Right = {},
+            },
             Description = Description,
             Sides = {
                 TabLeft,
@@ -9031,6 +9465,22 @@ function Library:CreateWindow(WindowInfo)
         end
 
         function Tab:AddGroupbox(Info)
+            local SideName =
+                Info.Side == 1
+                and "Left"
+                or "Right"
+
+            Tab.GroupboxOrder =
+                Tab.GroupboxOrder
+                or {
+                    Left = {},
+                    Right = {},
+                }
+
+            Tab.GroupboxOrder[SideName] =
+                Tab.GroupboxOrder[SideName]
+                or {}
+
             local BoxHolder = New("Frame", {
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
@@ -9104,30 +9554,30 @@ function Library:CreateWindow(WindowInfo)
                     Parent = GroupboxLabel,
                 })
 
+                GroupboxHeaderButton = New("TextButton", {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.fromOffset(0, 0),
+                    Size = UDim2.new(1, 0, 0, 34),
+                    Text = "",
+                    AutoButtonColor = false,
+                    ZIndex = GroupboxLabel.ZIndex + 1,
+                    Parent = GroupboxHolder,
+                })
+
 				if Info.Collapsible == true then
 
-    GroupboxHeaderButton = New("TextButton", {
-        BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(0, 0),
-        Size = UDim2.new(1, 0, 0, 34),
-        Text = "",
-        AutoButtonColor = false,
-        ZIndex = GroupboxLabel.ZIndex + 1,
-        Parent = GroupboxHolder,
-    })
-
-    GroupboxCollapseArrow = New("TextLabel", {
-        AnchorPoint = Vector2.new(1, 0),
-        BackgroundTransparency = 1,
-        Position = UDim2.new(1, -10, 0, 0),
-        Size = UDim2.fromOffset(18, 34),
-        Text = "v",
-        TextSize = 15,
-        TextTransparency = 0.35,
-        ZIndex = GroupboxHeaderButton.ZIndex + 1,
-        Parent = GroupboxHeaderButton,
-    })
-end
+                    GroupboxCollapseArrow = New("TextLabel", {
+                        AnchorPoint = Vector2.new(1, 0),
+                        BackgroundTransparency = 1,
+                        Position = UDim2.new(1, -10, 0, 0),
+                        Size = UDim2.fromOffset(18, 34),
+                        Text = "v",
+                        TextSize = 15,
+                        TextTransparency = 0.35,
+                        ZIndex = GroupboxHeaderButton.ZIndex + 1,
+                        Parent = GroupboxHeaderButton,
+                    })
+                end
 
                 GroupboxContainer = New("Frame", {
                     BackgroundTransparency = 1,
@@ -9150,6 +9600,10 @@ end
             end
 
             local Groupbox = {
+    Name = tostring(Info.Name or "Groupbox"),
+    SideName = SideName,
+    CreatedOrder = #Tab.GroupboxOrder[SideName] + 1,
+
     BoxHolder = BoxHolder,
     Holder = GroupboxHolder,
     HeaderButton = GroupboxHeaderButton,
@@ -9162,6 +9616,9 @@ end
 
     Collapsible = Info.Collapsible == true,
     Collapsed = Info.Collapsed == true,
+
+    __ReorderEnabled = false,
+    __DraggingMoved = false,
 }
 
             function Groupbox:Resize()
@@ -9235,6 +9692,13 @@ if GroupboxHeaderButton then
 
     GroupboxHeaderButton.MouseButton1Click:Connect(function()
 
+        if Groupbox.__DraggingMoved == true then
+            Groupbox.__DraggingMoved =
+                false
+
+            return
+        end
+
         if not Groupbox.Collapsible then
             return
         end
@@ -9246,7 +9710,27 @@ end
             setmetatable(Groupbox, BaseGroupbox)
 
             Groupbox:Resize()
-            Tab.Groupboxes[Info.Name] = Groupbox
+
+            Tab.Groupboxes[Info.Name] =
+                Groupbox
+
+            table.insert(
+                Tab.GroupboxOrder[SideName],
+                Groupbox
+            )
+
+            if type(Library.EnableGroupboxReorder) == "function" then
+                Library:EnableGroupboxReorder(
+                    Groupbox
+                )
+            end
+
+            if type(Library.RefreshGroupboxOrder) == "function" then
+                Library:RefreshGroupboxOrder(
+                    Tab,
+                    SideName
+                )
+            end
 
             return Groupbox
         end
