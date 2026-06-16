@@ -592,7 +592,7 @@ local function GetTableSize(Table: { [any]: any })
     local Size = 0
 
     for _, _ in Table do
-        Size += 1
+        Size = Size + 1
     end
 
     return Size
@@ -677,7 +677,7 @@ local function CheckDepbox(Box, Search)
             end
             ElementInfo.Holder.Visible = Visible
             if Visible then
-                VisibleElements += 1
+                VisibleElements = VisibleElements + 1
             end
 
             continue
@@ -686,7 +686,7 @@ local function CheckDepbox(Box, Search)
         --// Check if Search matches Element's Name and if Element is Visible
         if ElementInfo.Text and ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
             ElementInfo.Holder.Visible = true
-            VisibleElements += 1
+            VisibleElements = VisibleElements + 1
         else
             ElementInfo.Holder.Visible = false
         end
@@ -697,7 +697,7 @@ local function CheckDepbox(Box, Search)
             continue
         end
 
-        VisibleElements += CheckDepbox(Depbox, Search)
+        VisibleElements = VisibleElements + CheckDepbox(Depbox, Search)
     end
 
     Box.Holder.Visible = VisibleElements > 0
@@ -757,7 +757,7 @@ local function ApplySearchToTab(Tab, Search)
                 end
                 ElementInfo.Holder.Visible = Visible
                 if Visible then
-                    VisibleElements += 1
+                    VisibleElements = VisibleElements + 1
                 end
 
                 continue
@@ -766,7 +766,7 @@ local function ApplySearchToTab(Tab, Search)
             --// Check if Search matches Element's Name and if Element is Visible
             if ElementInfo.Text and ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
                 ElementInfo.Holder.Visible = true
-                VisibleElements += 1
+                VisibleElements = VisibleElements + 1
             else
                 ElementInfo.Holder.Visible = false
             end
@@ -777,7 +777,7 @@ local function ApplySearchToTab(Tab, Search)
                 continue
             end
 
-            VisibleElements += CheckDepbox(Depbox, Search)
+            VisibleElements = VisibleElements + CheckDepbox(Depbox, Search)
         end
 
         --// Update Groupbox Size and Visibility if found any element
@@ -816,7 +816,7 @@ local function ApplySearchToTab(Tab, Search)
                     end
                     ElementInfo.Holder.Visible = Visible
                     if Visible then
-                        VisibleElements[SubTab] += 1
+                        VisibleElements[SubTab] = VisibleElements[SubTab] + 1
                     end
 
                     continue
@@ -825,7 +825,7 @@ local function ApplySearchToTab(Tab, Search)
                 --// Check if Search matches Element's Name and if Element is Visible
                 if ElementInfo.Text and ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
                     ElementInfo.Holder.Visible = true
-                    VisibleElements[SubTab] += 1
+                    VisibleElements[SubTab] = VisibleElements[SubTab] + 1
                 else
                     ElementInfo.Holder.Visible = false
                 end
@@ -836,14 +836,14 @@ local function ApplySearchToTab(Tab, Search)
                     continue
                 end
 
-                VisibleElements[SubTab] += CheckDepbox(Depbox, Search)
+                VisibleElements[SubTab] = VisibleElements[SubTab] + CheckDepbox(Depbox, Search)
             end
         end
 
         for SubTab, Visible in VisibleElements do
             SubTab.ButtonHolder.Visible = Visible > 0
             if Visible > 0 then
-                VisibleTabs += 1
+                VisibleTabs = VisibleTabs + 1
                 HasVisible = true
 
                 if Tabbox.ActiveTab == SubTab then
@@ -7583,7 +7583,7 @@ do
                     continue
                 end
 
-                Count += 1
+                Count = Count + 1
 
                 local IsDisabled = table.find(DisabledValues, Value)
                 local Table = {}
@@ -8046,7 +8046,7 @@ do
 
             if input.UserInputType == Enum.UserInputType.MouseWheel then
                 local ZoomAmount = input.Position.Z * 2
-                Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * ZoomAmount
+                Viewport.Camera.CFrame = Viewport.Camera.CFrame + Viewport.Camera.CFrame.LookVector * ZoomAmount
             end
         end)
 
@@ -8067,7 +8067,7 @@ do
                 local currentDist = (touchPositions[1] - touchPositions[2]).Magnitude
                 local delta = (currentDist - LastPinchDist) * 0.1
                 LastPinchDist = currentDist
-                Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * delta
+                Viewport.Camera.CFrame = Viewport.Camera.CFrame + Viewport.Camera.CFrame.LookVector * delta
             elseif state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
                 Pinching = false
             end
