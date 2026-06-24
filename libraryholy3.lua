@@ -6374,6 +6374,422 @@ do
         return PetMarketList
     end
 
+    function Funcs:AddSniperWatchlist(Idx, Info)
+
+        Info =
+            Info
+            or {}
+
+        local Groupbox =
+            self
+
+        local Container =
+            Groupbox.Container
+
+        local RowCount =
+            math.clamp(
+                tonumber(Info.Rows) or 7,
+                1,
+                16
+            )
+
+        local RowHeight =
+            tonumber(Info.RowHeight)
+            or 23
+
+        local HeaderHeight =
+            tonumber(Info.HeaderHeight)
+            or 20
+
+        local Callback =
+            Info.Callback
+
+        local Watchlist = {
+            Rows = {},
+            RowData = {},
+            SelectedIndex = nil,
+            Visible = Info.Visible ~= false,
+            Type = "SniperWatchlist",
+        }
+
+        local Holder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(
+                1,
+                0,
+                0,
+                HeaderHeight + (RowCount * RowHeight) + 4
+            ),
+            Visible = Watchlist.Visible,
+            Parent = Container,
+        })
+
+        local Box = New("Frame", {
+            BackgroundColor3 = "BackgroundColor",
+            Size = UDim2.fromScale(1, 1),
+            Parent = Holder,
+        })
+
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = Box,
+            })
+        )
+
+        New("UIStroke", {
+            Color = "OutlineColor",
+            Transparency = 0.15,
+            Parent = Box,
+        })
+
+        local Header = New("Frame", {
+            BackgroundColor3 = "MainColor",
+            BackgroundTransparency = 0.22,
+            Size = UDim2.new(1, 0, 0, HeaderHeight),
+            Parent = Box,
+        })
+
+        local function MakeHeader(text, position, size, align)
+
+            return New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = position,
+                Size = size,
+                Text = text,
+                TextSize = 12,
+                TextTransparency = 0.35,
+                TextXAlignment = align or Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = Header,
+            })
+        end
+
+        MakeHeader(
+            "Pet",
+            UDim2.fromOffset(10, 0),
+            UDim2.new(0.32, -10, 1, 0)
+        )
+
+        MakeHeader(
+            "Value",
+            UDim2.fromScale(0.32, 0),
+            UDim2.new(0.16, 0, 1, 0)
+        )
+
+        MakeHeader(
+            "Size",
+            UDim2.fromScale(0.48, 0),
+            UDim2.new(0.18, 0, 1, 0)
+        )
+
+        MakeHeader(
+            "Variant",
+            UDim2.fromScale(0.66, 0),
+            UDim2.new(0.18, 0, 1, 0)
+        )
+
+        MakeHeader(
+            "Amt",
+            UDim2.fromScale(0.84, 0),
+            UDim2.new(0.08, 0, 1, 0),
+            Enum.TextXAlignment.Center
+        )
+
+        MakeHeader(
+            "Pri",
+            UDim2.fromScale(0.92, 0),
+            UDim2.new(0.08, -8, 1, 0),
+            Enum.TextXAlignment.Center
+        )
+
+        local RowsHolder = New("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(0, HeaderHeight + 2),
+            Size = UDim2.new(1, 0, 1, -HeaderHeight - 2),
+            Parent = Box,
+        })
+
+        local function SetText(label, value)
+
+            label.Text =
+                tostring(value or "")
+        end
+
+        local function ApplyRowVisual(row)
+
+            local hasData =
+                type(row.Data) == "table"
+
+            local selected =
+                row.Index == Watchlist.SelectedIndex
+                and hasData == true
+
+            row.Button.Active =
+                hasData
+
+            row.Button.BackgroundTransparency =
+                selected and 0.14 or 1
+
+            row.Marker.BackgroundTransparency =
+                selected and 0 or 1
+
+            row.Pet.TextTransparency =
+                hasData and (selected and 0 or 0.14) or 0.78
+
+            row.Value.TextTransparency =
+                hasData and (selected and 0 or 0.18) or 0.85
+
+            row.Size.TextTransparency =
+                hasData and (selected and 0.05 or 0.34) or 0.85
+
+            row.Variant.TextTransparency =
+                hasData and (selected and 0.05 or 0.34) or 0.85
+
+            row.Amount.TextTransparency =
+                hasData and (selected and 0.05 or 0.34) or 0.85
+
+            row.Priority.TextTransparency =
+                hasData and (selected and 0.05 or 0.34) or 0.85
+        end
+
+        local function MakeCell(parent, position, size, align)
+
+            return New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = position,
+                Size = size,
+                Text = "",
+                TextSize = 12,
+                TextXAlignment = align or Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = parent,
+            })
+        end
+
+        for rowIndex = 1, RowCount do
+
+            local RowButton = New("TextButton", {
+                BackgroundColor3 = "MainColor",
+                BackgroundTransparency = 1,
+                Position = UDim2.new(
+                    0,
+                    0,
+                    0,
+                    (rowIndex - 1) * RowHeight
+                ),
+                Size = UDim2.new(1, 0, 0, RowHeight),
+                Text = "",
+                Parent = RowsHolder,
+            })
+
+            local Marker = New("Frame", {
+                BackgroundColor3 = "AccentColor",
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(3, 5),
+                Size = UDim2.new(0, 3, 1, -10),
+                Parent = RowButton,
+            })
+
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = Marker,
+                })
+            )
+
+            local row = {
+                Index = rowIndex,
+                Button = RowButton,
+                Marker = Marker,
+                Pet = MakeCell(
+                    RowButton,
+                    UDim2.fromOffset(10, 0),
+                    UDim2.new(0.32, -10, 1, 0)
+                ),
+                Value = MakeCell(
+                    RowButton,
+                    UDim2.fromScale(0.32, 0),
+                    UDim2.new(0.16, 0, 1, 0)
+                ),
+                Size = MakeCell(
+                    RowButton,
+                    UDim2.fromScale(0.48, 0),
+                    UDim2.new(0.18, 0, 1, 0)
+                ),
+                Variant = MakeCell(
+                    RowButton,
+                    UDim2.fromScale(0.66, 0),
+                    UDim2.new(0.18, 0, 1, 0)
+                ),
+                Amount = MakeCell(
+                    RowButton,
+                    UDim2.fromScale(0.84, 0),
+                    UDim2.new(0.08, 0, 1, 0),
+                    Enum.TextXAlignment.Center
+                ),
+                Priority = MakeCell(
+                    RowButton,
+                    UDim2.fromScale(0.92, 0),
+                    UDim2.new(0.08, -8, 1, 0),
+                    Enum.TextXAlignment.Center
+                ),
+                Data = nil,
+            }
+
+            row.Value.TextColor3 =
+                Library.Scheme.AccentColor
+
+            Library.Registry[row.Value].TextColor3 =
+                "AccentColor"
+
+            RowButton.MouseEnter:Connect(function()
+
+                if row.Data == nil then
+                    return
+                end
+
+                if row.Index ~= Watchlist.SelectedIndex then
+                    RowButton.BackgroundTransparency = 0.72
+                end
+            end)
+
+            RowButton.MouseLeave:Connect(function()
+
+                ApplyRowVisual(
+                    row
+                )
+            end)
+
+            RowButton.MouseButton1Click:Connect(function()
+
+                if row.Data == nil then
+                    return
+                end
+
+                Watchlist:SetSelected(
+                    rowIndex
+                )
+
+                if typeof(Callback) == "function" then
+
+                    Library:SafeCallback(
+                        Callback,
+                        rowIndex,
+                        row.Data
+                    )
+                end
+            end)
+
+            table.insert(
+                Watchlist.Rows,
+                row
+            )
+
+            ApplyRowVisual(
+                row
+            )
+        end
+
+        function Watchlist:SetRows(rows)
+
+            Watchlist.RowData =
+                rows
+                or {}
+
+            for index, row in ipairs(Watchlist.Rows) do
+
+                local data =
+                    Watchlist.RowData[index]
+
+                row.Data =
+                    data
+
+                if type(data) == "table" then
+
+                    SetText(row.Pet, data.Pet)
+                    SetText(row.Value, data.Value)
+                    SetText(row.Size, data.Size)
+                    SetText(row.Variant, data.Variant)
+                    SetText(row.Amount, data.Amount)
+                    SetText(row.Priority, data.Priority)
+
+                else
+
+                    SetText(row.Pet, "")
+                    SetText(row.Value, "")
+                    SetText(row.Size, "")
+                    SetText(row.Variant, "")
+                    SetText(row.Amount, "")
+                    SetText(row.Priority, "")
+                end
+
+                ApplyRowVisual(
+                    row
+                )
+            end
+
+            if #Watchlist.RowData <= 0 then
+
+                Watchlist.SelectedIndex =
+                    nil
+            end
+        end
+
+        function Watchlist:SetSelected(index)
+
+            Watchlist.SelectedIndex =
+                tonumber(index)
+
+            for _, row in ipairs(Watchlist.Rows) do
+
+                ApplyRowVisual(
+                    row
+                )
+            end
+        end
+
+        function Watchlist:GetSelectedData()
+
+            local index =
+                tonumber(Watchlist.SelectedIndex)
+
+            if not index then
+                return nil
+            end
+
+            return Watchlist.RowData[index]
+        end
+
+        function Watchlist:SetVisible(visible)
+
+            Watchlist.Visible =
+                visible == true
+
+            Holder.Visible =
+                Watchlist.Visible
+
+            Groupbox:Resize()
+        end
+
+        Watchlist.Holder =
+            Holder
+
+        table.insert(
+            Groupbox.Elements,
+            Watchlist
+        )
+
+        Options[Idx] =
+            Watchlist
+
+        Groupbox:Resize()
+
+        return Watchlist
+    end
+
     function Funcs:AddCheckbox(Idx, Info)
         Info = Library:Validate(Info, Templates.Toggle)
 
