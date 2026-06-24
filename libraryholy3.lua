@@ -9941,10 +9941,50 @@ function Library:CreateWindow(WindowInfo)
         end
 
         function Tab:RefreshSides()
-            local Offset = WarningBoxHolder.Visible and WarningBox.Size.Y.Offset + 8 or 0
+
+            local TopOffset =
+                0
+
+            if Tab.TopBarHolder
+            and Tab.TopBarHolder.Visible == true then
+
+                TopOffset =
+                    tonumber(Tab.TopBarHeight)
+                    or 46
+            end
+
+            WarningBoxHolder.Position =
+                UDim2.fromOffset(
+                    0,
+                    TopOffset + 7
+                )
+
+            local WarningOffset =
+                WarningBoxHolder.Visible
+                and WarningBox.Size.Y.Offset + 8
+                or 0
+
+            local Offset =
+                TopOffset
+                + WarningOffset
+
             for _, Side in Tab.Sides do
-                Side.Position = UDim2.new(Side.Position.X.Scale, 0, 0, Offset)
-                Side.Size = UDim2.new(0.5, -3, 1, -Offset)
+
+                Side.Position =
+                    UDim2.new(
+                        Side.Position.X.Scale,
+                        0,
+                        0,
+                        Offset
+                    )
+
+                Side.Size =
+                    UDim2.new(
+                        0.5,
+                        -3,
+                        1,
+                        -Offset
+                    )
             end
         end
 
@@ -9971,6 +10011,317 @@ function Library:CreateWindow(WindowInfo)
             end
 
             Tab:RefreshSides()
+        end
+
+        function Tab:AddTopSegmentedControl(Info)
+
+            Info =
+                Info
+                or {}
+
+            local Values =
+                type(Info.Values) == "table"
+                and Info.Values
+                or {
+                    "Buy",
+                    "Sell",
+                }
+
+            local Default =
+                tostring(
+                    Info.Default
+                    or Values[1]
+                    or ""
+                )
+
+            local Callback =
+                Info.Callback
+                or Info.Func
+
+            local Width =
+                math.clamp(
+                    tonumber(Info.Width)
+                    or 340,
+                    220,
+                    460
+                )
+
+            local Height =
+                math.clamp(
+                    tonumber(Info.Height)
+                    or 46,
+                    38,
+                    64
+                )
+
+            local PillHeight =
+                math.clamp(
+                    tonumber(Info.PillHeight)
+                    or 32,
+                    28,
+                    42
+                )
+
+            Tab.TopBarHeight =
+                Height
+
+            if Tab.TopBarHolder
+            and Tab.TopBarHolder.Parent then
+
+                pcall(function()
+
+                    Tab.TopBarHolder:Destroy()
+                end)
+            end
+
+            local TopHolder =
+                New("Frame", {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.fromOffset(0, 0),
+                    Size = UDim2.new(1, 0, 0, Height),
+                    Parent = TabContainer,
+                })
+
+            local Pill =
+                New("Frame", {
+                    AnchorPoint = Vector2.new(0.5, 0),
+                    BackgroundColor3 = "MainColor",
+                    BackgroundTransparency = 0.16,
+                    Position = UDim2.new(0.5, 0, 0, 6),
+                    Size = UDim2.fromOffset(Width, PillHeight),
+                    Parent = TopHolder,
+                })
+
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = Pill,
+                })
+            )
+
+            Library:AddOutline(
+                Pill
+            )
+
+            local ButtonHolder =
+                New("Frame", {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.fromOffset(3, 3),
+                    Size = UDim2.new(1, -6, 1, -6),
+                    Parent = Pill,
+                })
+
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                HorizontalFlex = Enum.UIFlexAlignment.Fill,
+                Padding = UDim.new(0, 3),
+                Parent = ButtonHolder,
+            })
+
+            local Segmented = {
+                Value = Default,
+                Buttons = {},
+                Holder = TopHolder,
+                Pill = Pill,
+                Type = "TopSegmentedControl",
+            }
+
+            local function createButton(value)
+
+                value =
+                    tostring(value or "")
+
+                local Button =
+                    New("TextButton", {
+                        BackgroundColor3 = "MainColor",
+                        BackgroundTransparency = 1,
+                        Size = UDim2.fromScale(1, 1),
+                        Text = value,
+                        TextSize = 14,
+                        TextTransparency = 0.38,
+                        Parent = ButtonHolder,
+                    })
+
+                table.insert(
+                    Library.Corners,
+                    New("UICorner", {
+                        CornerRadius = UDim.new(1, 0),
+                        Parent = Button,
+                    })
+                )
+
+                local Stroke =
+                    New("UIStroke", {
+                        Color = "AccentColor",
+                        Transparency = 1,
+                        Parent = Button,
+                    })
+
+                local Entry = {
+                    Value = value,
+                    Button = Button,
+                    Stroke = Stroke,
+                }
+
+                Button.MouseEnter:Connect(function()
+
+                    if Segmented.Value == value then
+                        return
+                    end
+
+                    TweenService:Create(Button, Library.TweenInfo, {
+                        TextTransparency = 0.12,
+                        BackgroundTransparency = 0.72,
+                    }):Play()
+                end)
+
+                Button.MouseLeave:Connect(function()
+
+                    if Segmented.Value == value then
+                        return
+                    end
+
+                    TweenService:Create(Button, Library.TweenInfo, {
+                        TextTransparency = 0.38,
+                        BackgroundTransparency = 1,
+                    }):Play()
+                end)
+
+                Button.MouseButton1Click:Connect(function()
+
+                    Segmented:SetValue(
+                        value
+                    )
+                end)
+
+                table.insert(
+                    Segmented.Buttons,
+                    Entry
+                )
+
+                return Entry
+            end
+
+            for _, value in ipairs(Values) do
+
+                createButton(
+                    value
+                )
+            end
+
+            function Segmented:Display()
+
+                for _, entry in ipairs(Segmented.Buttons) do
+
+                    local selected =
+                        entry.Value == Segmented.Value
+
+                    entry.Button.BackgroundColor3 =
+                        selected and Library.Scheme.AccentColor
+                        or Library.Scheme.MainColor
+
+                    entry.Button.BackgroundTransparency =
+                        selected and 0
+                        or 1
+
+                    entry.Button.TextTransparency =
+                        selected and 0
+                        or 0.38
+
+                    entry.Stroke.Transparency =
+                        selected and 0.45
+                        or 1
+
+                    Library.Registry[entry.Button].BackgroundColor3 =
+                        selected and "AccentColor"
+                        or "MainColor"
+
+                    Library.Registry[entry.Stroke].Color =
+                        "AccentColor"
+                end
+            end
+
+            function Segmented:SetValue(value, silent)
+
+                value =
+                    tostring(value or "")
+
+                local valid =
+                    false
+
+                for _, entry in ipairs(Segmented.Buttons) do
+
+                    if entry.Value == value then
+
+                        valid =
+                            true
+
+                        break
+                    end
+                end
+
+                if valid ~= true then
+                    return
+                end
+
+                Segmented.Value =
+                    value
+
+                Segmented:Display()
+
+                if silent ~= true
+                and type(Callback) == "function" then
+
+                    Library:SafeCallback(
+                        Callback,
+                        value,
+                        Segmented
+                    )
+                end
+            end
+
+            function Segmented:SetVisible(visible)
+
+                TopHolder.Visible =
+                    visible == true
+
+                Tab:RefreshSides()
+            end
+
+            function Segmented:Destroy()
+
+                if TopHolder then
+
+                    TopHolder:Destroy()
+                end
+
+                if Tab.TopBarHolder == TopHolder then
+
+                    Tab.TopBarHolder =
+                        nil
+
+                    Tab.TopBarHeight =
+                        0
+                end
+
+                Tab:RefreshSides()
+            end
+
+            Tab.TopBarHolder =
+                TopHolder
+
+            Tab.TopBar =
+                Segmented
+
+            Segmented:SetValue(
+                Default,
+                true
+            )
+
+            Tab:RefreshSides()
+
+            return Segmented
         end
 
         function Tab:AddGroupbox(Info)
