@@ -3363,6 +3363,32 @@ function Library:CreateServerFinderHUD(Info)
     local CurrentServerText =
         "---"
 
+    local function UpdateInfoLabel()
+
+        if InfoLabel == nil then
+            return
+        end
+
+        Hud.FilteredRows =
+            type(Hud.FilteredRows) == "table"
+            and Hud.FilteredRows
+            or {}
+
+        Hud.Rows =
+            type(Hud.Rows) == "table"
+            and Hud.Rows
+            or {}
+
+        InfoLabel.Text =
+            "Current: "
+            .. tostring(CurrentServerText)
+            .. " · "
+            .. tostring(#Hud.FilteredRows)
+            .. "/"
+            .. tostring(#Hud.Rows)
+            .. " servers"
+    end
+
     local function UpdateFilterButtonText()
 
         local count =
@@ -4524,7 +4550,10 @@ function Library:CreateServerFinderHUD(Info)
                 jobId
             )
 
-        UpdateInfoLabel()
+        if type(UpdateInfoLabel) == "function" then
+
+            UpdateInfoLabel()
+        end
     end
 
     function Hud:OpenFilters()
