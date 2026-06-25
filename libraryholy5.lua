@@ -2700,6 +2700,7 @@ function Library:CreateServerFinderHUD(Info)
         OnRefresh = Info.OnRefresh,
         OnJoin = Info.OnJoin,
         OnVisibleChanged = Info.OnVisibleChanged,
+        OnSettingsChanged = Info.OnSettingsChanged,
     }
 
     local Width =
@@ -2788,6 +2789,175 @@ function Library:CreateServerFinderHUD(Info)
         end)
 
         return output
+    end
+
+	    local function SelectionMapFromList(list)
+
+        local output =
+            {}
+
+        if type(list) ~= "table" then
+            return output
+        end
+
+        for key, enabled in pairs(list) do
+
+            local text =
+                ""
+
+            if type(key) == "number" then
+
+                text =
+                    Clean(
+                        enabled
+                    )
+
+            elseif enabled == true then
+
+                text =
+                    Clean(
+                        key
+                    )
+            end
+
+            if text ~= "" then
+
+                output[text] =
+                    true
+            end
+        end
+
+        return output
+    end
+
+    local function SelectionListFromMap(map)
+
+        local output =
+            {}
+
+        if type(map) ~= "table" then
+            return output
+        end
+
+        for key, enabled in pairs(map) do
+
+            if enabled == true then
+
+                local text =
+                    Clean(
+                        key
+                    )
+
+                if text ~= "" then
+
+                    table.insert(
+                        output,
+                        text
+                    )
+                end
+            end
+        end
+
+        table.sort(output, function(a, b)
+
+            return tostring(a):lower()
+                < tostring(b):lower()
+        end)
+
+        return output
+    end
+
+    local function ReadSavedPosition(value)
+
+        if type(value) ~= "table" then
+            return nil
+        end
+
+        local x =
+            tonumber(
+                value.X
+                or value.x
+                or value[1]
+            )
+
+        local y =
+            tonumber(
+                value.Y
+                or value.y
+                or value[2]
+            )
+
+        if not x
+        or not y then
+            return nil
+        end
+
+        return {
+            X =
+                math.floor(x + 0.5),
+
+            Y =
+                math.floor(y + 0.5),
+        }
+    end
+
+    local function ApplySavedPosition(frame, value)
+
+        if typeof(frame) ~= "Instance" then
+            return false
+        end
+
+        value =
+            ReadSavedPosition(
+                value
+            )
+
+        if type(value) ~= "table" then
+            return false
+        end
+
+        frame.Position =
+            UDim2.fromOffset(
+                value.X,
+                value.Y
+            )
+
+        return true
+    end
+
+    local function GetFramePosition(frame)
+
+        if typeof(frame) ~= "Instance" then
+            return nil
+        end
+
+        return {
+            X =
+                math.floor(
+                    frame.Position.X.Offset + 0.5
+                ),
+
+            Y =
+                math.floor(
+                    frame.Position.Y.Offset + 0.5
+                ),
+        }
+    end
+
+    local function PositionKey(frame)
+
+        local position =
+            GetFramePosition(
+                frame
+            )
+
+        if type(position) ~= "table" then
+            return ""
+        end
+
+        return tostring(position.X)
+            .. ","
+            .. tostring(position.Y)
     end
 
     local function CountSelected(map)
@@ -3364,6 +3534,27 @@ function Library:CreateServerFinderHUD(Info)
     local CurrentServerText =
         "---"
 
+    local SettingsSignalLocked =
+        false
+
+    local LastHudPositionKey =
+        ""
+
+    local LastFilterPositionKey =
+        ""
+
+    local function NotifySettingsChanged()
+
+        if SettingsSignalLocked == true then
+            return
+        end
+
+        Library:SafeCallback(
+            Hud.OnSettingsChanged,
+            Hud
+        )
+    end
+
     local function UpdateInfoLabel()
 
         if InfoLabel == nil then
@@ -3538,6 +3729,8 @@ function Library:CreateServerFinderHUD(Info)
                 UpdateFilterButtonText()
 
                 Hud:Refresh()
+
+                NotifySettingsChanged()
             end)
         end
 
@@ -3673,9 +3866,11 @@ function Library:CreateServerFinderHUD(Info)
             )
 
             Hud:Refresh()
+
+            NotifySettingsChanged()
         end)
 
-		        local DelayRow = New("Frame", {
+        local DelayRow = New("Frame", {
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 25),
             ZIndex = Rules.ZIndex + 1,
@@ -3785,6 +3980,8 @@ function Library:CreateServerFinderHUD(Info)
         RefreshDelayInput.FocusLost:Connect(function()
 
             ApplyRefreshDelayInput()
+
+            NotifySettingsChanged()
         end)
 
         ClearFiltersButton.MouseButton1Click:Connect(function()
@@ -3804,6 +4001,8 @@ function Library:CreateServerFinderHUD(Info)
             RebuildFilterPopup()
 
             Hud:Refresh()
+
+            NotifySettingsChanged()
         end)
 
         UpdateFilterButtonText()
@@ -4512,6 +4711,138 @@ function Library:CreateServerFinderHUD(Info)
         end
     end
 
+    function Hud:GetSettings()
+
+        return {
+            Visible =
+                Hud.Visible == true,
+
+            AutoRefresh =
+                Hud.AutoRefresh == true,
+
+            RefreshDelay =
+                math.clamp(
+                    tonumber(Hud.RefreshDelay)
+                    or 5,
+                    1,
+                    60
+                ),
+
+            HideFull =
+                Hud.HideFull ~= false,
+
+            SelectedPets =
+                SelectionListFromMap(
+                    Hud.SelectedPets
+                ),
+
+            SelectedRarities =
+                SelectionListFromMap(
+                    Hud.SelectedRarities
+                ),
+
+            SelectedTraits =
+                SelectionListFromMap(
+                    Hud.SelectedTraits
+                ),
+
+            Minimized =
+                Hud.Minimized == true,
+
+            Position =
+                GetFramePosition(
+                    HudFrame
+                ),
+
+            FilterPosition =
+                GetFramePosition(
+                    FilterFrame
+                ),
+        }
+    end
+
+    function Hud:ApplySettings(settings)
+
+        settings =
+            type(settings) == "table"
+            and settings
+            or {}
+
+        SettingsSignalLocked =
+            true
+
+        Hud.AutoRefresh =
+            settings.AutoRefresh == true
+
+        Hud.RefreshDelay =
+            math.clamp(
+                tonumber(settings.RefreshDelay)
+                or tonumber(Hud.RefreshDelay)
+                or 5,
+                1,
+                60
+            )
+
+        Hud.HideFull =
+            settings.HideFull ~= false
+
+        Hud.SelectedPets =
+            SelectionMapFromList(
+                settings.SelectedPets
+            )
+
+        Hud.SelectedRarities =
+            SelectionMapFromList(
+                settings.SelectedRarities
+            )
+
+        Hud.SelectedTraits =
+            SelectionMapFromList(
+                settings.SelectedTraits
+            )
+
+        ApplySavedPosition(
+            HudFrame,
+            settings.Position
+        )
+
+        ApplySavedPosition(
+            FilterFrame,
+            settings.FilterPosition
+        )
+
+        AutoRefreshButton.Text =
+            Hud.AutoRefresh
+            and "Auto-refresh: ON"
+            or "Auto-refresh: OFF"
+
+        SetButtonSelected(
+            AutoRefreshButton,
+            Hud.AutoRefresh
+        )
+
+        RebuildFilterPopup()
+
+        Hud:Refresh()
+
+        Hud:SetMinimized(
+            settings.Minimized == true
+        )
+
+        LastHudPositionKey =
+            PositionKey(
+                HudFrame
+            )
+
+        LastFilterPositionKey =
+            PositionKey(
+                FilterFrame
+            )
+
+        SettingsSignalLocked =
+            false
+    end
+
     function Hud:OpenFilters()
 
         if Hud.Visible ~= true then
@@ -4647,6 +4978,8 @@ function Library:CreateServerFinderHUD(Info)
 
             Hud:CloseFilters()
         end
+
+        NotifySettingsChanged()
     end
 
     function Hud:SetVisible(visible)
@@ -4748,6 +5081,8 @@ function Library:CreateServerFinderHUD(Info)
             AutoRefreshButton,
             Hud.AutoRefresh
         )
+
+        NotifySettingsChanged()
     end)
 
     FilterButton.MouseButton1Click:Connect(function()
@@ -4775,6 +5110,28 @@ function Library:CreateServerFinderHUD(Info)
             if Hud.Visible == true then
 
                 UpdateVisibleRowObjects()
+
+                local hudPositionKey =
+                    PositionKey(
+                        HudFrame
+                    )
+
+                local filterPositionKey =
+                    PositionKey(
+                        FilterFrame
+                    )
+
+                if hudPositionKey ~= LastHudPositionKey
+                or filterPositionKey ~= LastFilterPositionKey then
+
+                    LastHudPositionKey =
+                        hudPositionKey
+
+                    LastFilterPositionKey =
+                        filterPositionKey
+
+                    NotifySettingsChanged()
+                end
 
                 if Hud.AutoRefresh == true
                 and type(Hud.OnRefresh) == "function"
@@ -4817,6 +5174,31 @@ function Library:CreateServerFinderHUD(Info)
             Info.FilterTraits
         )
 
+    Hud.SelectedPets =
+        SelectionMapFromList(
+            Info.SelectedPets
+        )
+
+    Hud.SelectedRarities =
+        SelectionMapFromList(
+            Info.SelectedRarities
+        )
+
+    Hud.SelectedTraits =
+        SelectionMapFromList(
+            Info.SelectedTraits
+        )
+
+    ApplySavedPosition(
+        HudFrame,
+        Info.Position
+    )
+
+    ApplySavedPosition(
+        FilterFrame,
+        Info.FilterPosition
+    )
+
     SetButtonSelected(
         AutoRefreshButton,
         Hud.AutoRefresh
@@ -4830,6 +5212,26 @@ function Library:CreateServerFinderHUD(Info)
     RebuildFilterPopup()
 
     Hud:Refresh()
+
+    SettingsSignalLocked =
+        true
+
+    Hud:SetMinimized(
+        Info.Minimized == true
+    )
+
+    SettingsSignalLocked =
+        false
+
+    LastHudPositionKey =
+        PositionKey(
+            HudFrame
+        )
+
+    LastFilterPositionKey =
+        PositionKey(
+            FilterFrame
+        )
 
     Library:MakeDraggable(
         HudFrame,
