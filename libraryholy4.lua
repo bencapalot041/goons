@@ -2704,11 +2704,11 @@ function Library:CreateServerFinderHUD(Info)
 
     local FilterWidth =
         tonumber(Info.FilterWidth)
-        or 374
+        or 320
 
     local FilterHeight =
         tonumber(Info.FilterHeight)
-        or 360
+        or 340
 
     local HudFrame = New("Frame", {
         BackgroundColor3 = "BackgroundColor",
@@ -3055,6 +3055,7 @@ function Library:CreateServerFinderHUD(Info)
     local FilterFrame = New("Frame", {
         BackgroundColor3 = "BackgroundColor",
         BackgroundTransparency = 0.12,
+        ClipsDescendants = true,
         Position = Info.FilterPosition or UDim2.fromOffset(414, 92),
         Size = UDim2.fromOffset(FilterWidth, FilterHeight),
         Visible = false,
@@ -3139,8 +3140,8 @@ function Library:CreateServerFinderHUD(Info)
 
     local FilterBody = New("Frame", {
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(12, 43),
-        Size = UDim2.new(1, -24, 1, -55),
+        Position = UDim2.fromOffset(10, 43),
+        Size = UDim2.new(1, -20, 1, -48),
         ZIndex = FilterFrame.ZIndex + 1,
         Parent = FilterFrame,
     })
@@ -3243,8 +3244,8 @@ function Library:CreateServerFinderHUD(Info)
 
     local PetRow1 =
         MakeButtonRow(
-            22,
-            28
+            20,
+            25
         )
 
     MakeFilterChip(PetRow1, "Raccoon", Hud.SelectedPets)
@@ -3253,8 +3254,8 @@ function Library:CreateServerFinderHUD(Info)
 
     local PetRow2 =
         MakeButtonRow(
-            56,
-            28
+            49,
+            25
         )
 
     MakeFilterChip(PetRow2, "Ice Serpent", Hud.SelectedPets)
@@ -3263,34 +3264,34 @@ function Library:CreateServerFinderHUD(Info)
 
     local PetRow3 =
         MakeButtonRow(
-            90,
-            28
+            78,
+            25
         )
 
     MakeFilterChip(PetRow3, "Black Dragon", Hud.SelectedPets)
     MakeFilterChip(PetRow3, "Bunny", Hud.SelectedPets)
     MakeFilterChip(PetRow3, "Frog", Hud.SelectedPets)
-    MakeFilterChip(PetRow3, "Owl", Hud.SelectedPets)
 
     local PetRow4 =
         MakeButtonRow(
-            124,
-            28
+            107,
+            25
         )
 
+    MakeFilterChip(PetRow4, "Owl", Hud.SelectedPets)
     MakeFilterChip(PetRow4, "Deer", Hud.SelectedPets)
     MakeFilterChip(PetRow4, "Robin", Hud.SelectedPets)
     MakeFilterChip(PetRow4, "Bee", Hud.SelectedPets)
 
     MakeSectionLabel(
         "Rarity",
-        166
+        139
     )
 
     local RarityRow =
         MakeButtonRow(
-            188,
-            28
+            158,
+            25
         )
 
     MakeFilterChip(RarityRow, "Legendary", Hud.SelectedRarities)
@@ -3300,13 +3301,13 @@ function Library:CreateServerFinderHUD(Info)
 
     MakeSectionLabel(
         "Size / Variant",
-        230
+        192
     )
 
     local TraitRow =
         MakeButtonRow(
-            252,
-            28
+            211,
+            25
         )
 
     MakeFilterChip(TraitRow, "Big", Hud.SelectedTraits)
@@ -3315,13 +3316,13 @@ function Library:CreateServerFinderHUD(Info)
 
     MakeSectionLabel(
         "Rules",
-        294
+        244
     )
 
     local RuleRow =
         MakeButtonRow(
-            316,
-            28
+            263,
+            25
         )
 
     local HideFullButton =
@@ -3834,31 +3835,71 @@ function Library:CreateServerFinderHUD(Info)
             and workspace.CurrentCamera.ViewportSize
             or Vector2.new(1280, 720)
 
-        local x =
+        local finderX =
             HudFrame.AbsolutePosition.X
-            + HudFrame.AbsoluteSize.X
+
+        local finderY =
+            HudFrame.AbsolutePosition.Y
+
+        local finderW =
+            HudFrame.AbsoluteSize.X
+
+        local finderH =
+            HudFrame.AbsoluteSize.Y
+
+        local x =
+            finderX
+            + finderW
             + 8
 
         local y =
-            HudFrame.AbsolutePosition.Y
+            finderY
 
         if x + FilterWidth > viewport.X - 8 then
 
             x =
-                HudFrame.AbsolutePosition.X
+                finderX
                 - FilterWidth
                 - 8
         end
 
         if x < 8 then
-            x = 8
+
+            x =
+                math.min(
+                    math.max(
+                        8,
+                        finderX
+                    ),
+                    math.max(
+                        8,
+                        viewport.X - FilterWidth - 8
+                    )
+                )
+
+            y =
+                finderY
+                + finderH
+                + 8
         end
 
         if y + FilterHeight > viewport.Y - 8 then
+
+            y =
+                finderY
+                - FilterHeight
+                - 8
+        end
+
+        if y < 8 then
+
             y =
                 math.max(
                     8,
-                    viewport.Y - FilterHeight - 8
+                    math.min(
+                        finderY,
+                        viewport.Y - FilterHeight - 8
+                    )
                 )
         end
 
@@ -3874,256 +3915,6 @@ function Library:CreateServerFinderHUD(Info)
         FilterFrame.Visible =
             true
     end
-
-    function Hud:CloseFilters()
-
-        Hud.FiltersVisible =
-            false
-
-        FilterFrame.Visible =
-            false
-    end
-
-    function Hud:ToggleFilters()
-
-        if Hud.FiltersVisible == true then
-
-            Hud:CloseFilters()
-
-        else
-
-            Hud:OpenFilters()
-        end
-    end
-
-    function Hud:SetMinimized(minimized)
-
-        Hud.Minimized =
-            minimized == true
-
-        Body.Visible =
-            Hud.Minimized ~= true
-
-        HudFrame.Size =
-            Hud.Minimized == true
-            and UDim2.fromOffset(Width, CollapsedHeight)
-            or UDim2.fromOffset(Width, Height)
-
-        MinimizeButton.Text =
-            Hud.Minimized == true
-            and "+"
-            or "−"
-
-        if Hud.Minimized == true then
-
-            Hud:CloseFilters()
-        end
-    end
-
-    function Hud:SetVisible(visible)
-
-        Hud.Visible =
-            visible == true
-
-        HudFrame.Visible =
-            Hud.Visible
-
-        if Hud.Visible ~= true then
-
-            Hud:CloseFilters()
-        end
-    end
-
-    function Hud:Show()
-
-        Hud:SetVisible(
-            true
-        )
-    end
-
-    function Hud:Hide()
-
-        Hud:SetVisible(
-            false
-        )
-    end
-
-    function Hud:Toggle()
-
-        Hud:SetVisible(
-            Hud.Visible ~= true
-        )
-    end
-
-    function Hud:Destroy()
-
-        pcall(function()
-
-            FilterFrame:Destroy()
-        end)
-
-        HudFrame:Destroy()
-    end
-
-    CloseButton.MouseButton1Click:Connect(function()
-
-        Hud:Hide()
-    end)
-
-    MinimizeButton.MouseButton1Click:Connect(function()
-
-        Hud:SetMinimized(
-            Hud.Minimized ~= true
-        )
-    end)
-
-    FilterCloseButton.MouseButton1Click:Connect(function()
-
-        Hud:CloseFilters()
-    end)
-
-    RefreshButton.MouseButton1Click:Connect(function()
-
-        Library:SafeCallback(
-            Hud.OnRefresh,
-            Hud
-        )
-    end)
-
-    AutoRefreshButton.MouseButton1Click:Connect(function()
-
-        Hud.AutoRefresh =
-            Hud.AutoRefresh ~= true
-
-        AutoRefreshButton.Text =
-            Hud.AutoRefresh
-            and "Auto-refresh: ON"
-            or "Auto-refresh: OFF"
-
-        SetButtonSelected(
-            AutoRefreshButton,
-            Hud.AutoRefresh
-        )
-    end)
-
-    FilterButton.MouseButton1Click:Connect(function()
-
-        Hud:ToggleFilters()
-    end)
-
-    HideFullButton.MouseButton1Click:Connect(function()
-
-        Hud.HideFull =
-            Hud.HideFull ~= true
-
-        HideFullButton.Text =
-            Hud.HideFull
-            and "Hide full: ON"
-            or "Hide full: OFF"
-
-        SetButtonSelected(
-            HideFullButton,
-            Hud.HideFull
-        )
-
-        Hud:Refresh()
-    end)
-
-    ClearFiltersButton.MouseButton1Click:Connect(function()
-
-        table.clear(
-            Hud.SelectedPets
-        )
-
-        table.clear(
-            Hud.SelectedRarities
-        )
-
-        table.clear(
-            Hud.SelectedTraits
-        )
-
-        for _, button in ipairs(FilterBody:GetDescendants()) do
-
-            if button:IsA("TextButton")
-            and button ~= HideFullButton
-            and button ~= ClearFiltersButton then
-
-                SetButtonSelected(
-                    button,
-                    false
-                )
-            end
-        end
-
-        UpdateFilterButtonText()
-
-        Hud:Refresh()
-    end)
-
-    SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-
-        Hud.SearchText =
-            Clean(
-                SearchBox.Text
-            )
-
-        Hud:Refresh()
-    end)
-
-    task.spawn(function()
-
-        while HudFrame.Parent ~= nil do
-
-            if Hud.Visible == true
-            and Hud.AutoRefresh == true
-            and type(Hud.OnRefresh) == "function" then
-
-                Library:SafeCallback(
-                    Hud.OnRefresh,
-                    Hud
-                )
-            end
-
-            task.wait(
-                5
-            )
-        end
-    end)
-
-    SetButtonSelected(
-        AutoRefreshButton,
-        Hud.AutoRefresh
-    )
-
-    SetButtonSelected(
-        HideFullButton,
-        Hud.HideFull
-    )
-
-    UpdateFilterButtonText()
-
-    Hud:SetCurrentServer(
-        Info.CurrentServer
-        or ""
-    )
-
-    Hud:Refresh()
-
-    Library:MakeDraggable(
-        HudFrame,
-        Header,
-        true
-    )
-
-    Library:MakeDraggable(
-        FilterFrame,
-        FilterHeader,
-        true
-    )
-
-    return Hud
-end
 
 --// Context Menu \\--
 local CurrentMenu
