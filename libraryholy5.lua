@@ -3412,56 +3412,11 @@ function Library:CreateServerFinderHUD(Info)
         )
     end
 
-    local function BuildCombinedOptions(baseList, getter)
+    local function BuildCombinedOptions(baseList, _getter)
 
-        local output =
-            {}
-
-        local seen =
-            {}
-
-        for _, value in ipairs(baseList or {}) do
-
-            AddUnique(
-                output,
-                seen,
-                value
-            )
-        end
-
-        for _, row in ipairs(Hud.Rows or {}) do
-
-            local values =
-                getter(row)
-
-            if type(values) == "table" then
-
-                for _, value in ipairs(values) do
-
-                    AddUnique(
-                        output,
-                        seen,
-                        value
-                    )
-                end
-
-            else
-
-                AddUnique(
-                    output,
-                    seen,
-                    values
-                )
-            end
-        end
-
-        table.sort(output, function(a, b)
-
-            return tostring(a):lower()
-                < tostring(b):lower()
-        end)
-
-        return output
+        return NormalizeList(
+            baseList
+        )
     end
 
     local function DestroyFilterSections()
