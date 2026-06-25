@@ -2675,10 +2675,11 @@ function Library:CreateServerFinderHUD(Info)
         Rows = {},
         FilteredRows = {},
         SearchText = "",
-        HideFull = true,
-        AutoRefresh = false,
+        HideFull = Info.HideFull ~= false,
+        AutoRefresh = Info.AutoRefresh == true,
         SelectedTraits = {},
         Visible = false,
+        Minimized = false,
         OnRefresh = Info.OnRefresh,
         OnJoin = Info.OnJoin,
     }
@@ -2691,12 +2692,16 @@ function Library:CreateServerFinderHUD(Info)
         tonumber(Info.Height)
         or 414
 
+    local CollapsedHeight =
+        33
+
     local RowHeight =
         tonumber(Info.RowHeight)
         or 52
 
     local HudFrame = New("Frame", {
         BackgroundColor3 = "BackgroundColor",
+        BackgroundTransparency = 0.18,
         Position = Info.Position or UDim2.fromOffset(92, 92),
         Size = UDim2.fromOffset(Width, Height),
         Visible = false,
@@ -2719,12 +2724,14 @@ function Library:CreateServerFinderHUD(Info)
         })
     )
 
-    Library:AddOutline(
-        HudFrame
-    )
+    local MainStroke =
+        Library:AddOutline(
+            HudFrame
+        )
 
     local Header = New("TextButton", {
-        BackgroundTransparency = 1,
+        BackgroundColor3 = "MainColor",
+        BackgroundTransparency = 0.36,
         Size = UDim2.new(1, 0, 0, 32),
         Text = "",
         ZIndex = HudFrame.ZIndex + 1,
@@ -2734,7 +2741,7 @@ function Library:CreateServerFinderHUD(Info)
     local TitleLabel = New("TextLabel", {
         BackgroundTransparency = 1,
         Position = UDim2.fromOffset(10, 0),
-        Size = UDim2.new(1, -54, 1, 0),
+        Size = UDim2.new(1, -76, 1, 0),
         Text = tostring(Info.Title or "HOLY Server Finder"),
         TextSize = 14,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -2743,8 +2750,35 @@ function Library:CreateServerFinderHUD(Info)
         Parent = Header,
     })
 
+    local MinimizeButton = New("TextButton", {
+        BackgroundColor3 = "MainColor",
+        BackgroundTransparency = 0.20,
+        Position = UDim2.new(1, -53, 0, 6),
+        Size = UDim2.fromOffset(20, 20),
+        Text = "−",
+        TextSize = 16,
+        TextTransparency = 0.20,
+        ZIndex = Header.ZIndex + 2,
+        Parent = Header,
+    })
+
+    table.insert(
+        Library.Corners,
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            Parent = MinimizeButton,
+        })
+    )
+
+    New("UIStroke", {
+        Color = "OutlineColor",
+        Transparency = 0.24,
+        Parent = MinimizeButton,
+    })
+
     local CloseButton = New("TextButton", {
         BackgroundColor3 = "MainColor",
+        BackgroundTransparency = 0.20,
         Position = UDim2.new(1, -29, 0, 6),
         Size = UDim2.fromOffset(20, 20),
         Text = "×",
@@ -2764,7 +2798,7 @@ function Library:CreateServerFinderHUD(Info)
 
     New("UIStroke", {
         Color = "OutlineColor",
-        Transparency = 0.25,
+        Transparency = 0.24,
         Parent = CloseButton,
     })
 
@@ -2777,43 +2811,40 @@ function Library:CreateServerFinderHUD(Info)
         }
     )
 
-    local CurrentLabel = New("TextLabel", {
+    local Body = New("Frame", {
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(10, 36),
-        Size = UDim2.new(1, -20, 0, 16),
-        Text = "Current server: ---",
-        TextSize = 12,
-        TextTransparency = 0.48,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
+        Position = UDim2.fromOffset(0, 33),
+        Size = UDim2.new(1, 0, 1, -33),
         ZIndex = HudFrame.ZIndex + 1,
         Parent = HudFrame,
     })
 
-    local CountLabel = New("TextLabel", {
+    local InfoLabel = New("TextLabel", {
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(10, 52),
-        Size = UDim2.new(1, -20, 0, 16),
-        Text = "0 server(s)",
+        Position = UDim2.fromOffset(10, 5),
+        Size = UDim2.new(1, -20, 0, 18),
+        Text = "Current: --- · 0 servers",
         TextSize = 12,
-        TextTransparency = 0.48,
+        TextTransparency = 0.42,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
-        ZIndex = HudFrame.ZIndex + 1,
-        Parent = HudFrame,
+        ZIndex = Body.ZIndex + 1,
+        Parent = Body,
     })
 
     local SearchBox = New("TextBox", {
         BackgroundColor3 = "MainColor",
+        BackgroundTransparency = 0.24,
         ClearTextOnFocus = false,
         PlaceholderText = "Filter pets, blank = all",
-        Position = UDim2.fromOffset(10, 73),
+        Position = UDim2.fromOffset(10, 31),
         Size = UDim2.new(1, -91, 0, 25),
         Text = "",
         TextSize = 12,
+        TextTransparency = 0.06,
         TextXAlignment = Enum.TextXAlignment.Left,
-        ZIndex = HudFrame.ZIndex + 1,
-        Parent = HudFrame,
+        ZIndex = Body.ZIndex + 1,
+        Parent = Body,
     })
 
     New("UIPadding", {
@@ -2832,19 +2863,20 @@ function Library:CreateServerFinderHUD(Info)
 
     New("UIStroke", {
         Color = "OutlineColor",
-        Transparency = 0.20,
+        Transparency = 0.24,
         Parent = SearchBox,
     })
 
     local RefreshButton = New("TextButton", {
-        BackgroundColor3 = "AccentColor",
-        Position = UDim2.new(1, -72, 0, 73),
+        BackgroundColor3 = "MainColor",
+        BackgroundTransparency = 0.14,
+        Position = UDim2.new(1, -72, 0, 31),
         Size = UDim2.fromOffset(62, 25),
         Text = "Refresh",
         TextSize = 12,
-        TextTransparency = 0.05,
-        ZIndex = HudFrame.ZIndex + 1,
-        Parent = HudFrame,
+        TextTransparency = 0.10,
+        ZIndex = Body.ZIndex + 1,
+        Parent = Body,
     })
 
     table.insert(
@@ -2855,15 +2887,21 @@ function Library:CreateServerFinderHUD(Info)
         })
     )
 
-    local ToggleRow = New("Frame", {
-        BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(10, 104),
-        Size = UDim2.new(1, -20, 0, 23),
-        ZIndex = HudFrame.ZIndex + 1,
-        Parent = HudFrame,
+    New("UIStroke", {
+        Color = "AccentColor",
+        Transparency = 0.26,
+        Parent = RefreshButton,
     })
 
-    local ToggleList = New("UIListLayout", {
+    local ToggleRow = New("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(10, 64),
+        Size = UDim2.new(1, -20, 0, 23),
+        ZIndex = Body.ZIndex + 1,
+        Parent = Body,
+    })
+
+    New("UIListLayout", {
         FillDirection = Enum.FillDirection.Horizontal,
         HorizontalFlex = Enum.UIFlexAlignment.Fill,
         Padding = UDim.new(0, 6),
@@ -2874,11 +2912,12 @@ function Library:CreateServerFinderHUD(Info)
 
         local button = New("TextButton", {
             BackgroundColor3 = "MainColor",
+            BackgroundTransparency = 0.32,
             Size = UDim2.fromScale(1, 1),
             Text = text,
             TextSize = 11,
-            TextTransparency = 0.42,
-            ZIndex = HudFrame.ZIndex + 1,
+            TextTransparency = 0.44,
+            ZIndex = Body.ZIndex + 1,
             Parent = parent,
         })
 
@@ -2892,34 +2931,49 @@ function Library:CreateServerFinderHUD(Info)
 
         New("UIStroke", {
             Color = "OutlineColor",
-            Transparency = 0.35,
+            Transparency = 0.42,
             Parent = button,
         })
 
         return button
     end
 
+    local function SetButtonSelected(button, selected)
+
+        button.BackgroundColor3 =
+            selected and Library.Scheme.AccentColor
+            or Library.Scheme.MainColor
+
+        button.BackgroundTransparency =
+            selected and 0.10
+            or 0.36
+
+        button.TextTransparency =
+            selected and 0.05
+            or 0.46
+    end
+
     local AutoRefreshButton =
         MakeSmallButton(
             ToggleRow,
-            "Auto-refresh: OFF"
+            Hud.AutoRefresh and "Auto-refresh: ON" or "Auto-refresh: OFF"
         )
 
     local HideFullButton =
         MakeSmallButton(
             ToggleRow,
-            "Hide full: ON"
+            Hud.HideFull and "Hide full: ON" or "Hide full: OFF"
         )
 
     local TraitRow = New("Frame", {
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(10, 132),
+        Position = UDim2.fromOffset(10, 94),
         Size = UDim2.new(1, -20, 0, 23),
-        ZIndex = HudFrame.ZIndex + 1,
-        Parent = HudFrame,
+        ZIndex = Body.ZIndex + 1,
+        Parent = Body,
     })
 
-    local TraitList = New("UIListLayout", {
+    New("UIListLayout", {
         FillDirection = Enum.FillDirection.Horizontal,
         HorizontalFlex = Enum.UIFlexAlignment.Fill,
         Padding = UDim.new(0, 6),
@@ -2928,17 +2982,6 @@ function Library:CreateServerFinderHUD(Info)
 
     local TraitButtons =
         {}
-
-    local function SetButtonSelected(button, selected)
-
-        button.BackgroundColor3 =
-            selected and Library.Scheme.AccentColor
-            or Library.Scheme.MainColor
-
-        button.TextTransparency =
-            selected and 0.06
-            or 0.46
-    end
 
     local function MakeTrait(name)
 
@@ -2978,13 +3021,13 @@ function Library:CreateServerFinderHUD(Info)
 
     local RarityRow = New("Frame", {
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(10, 160),
+        Position = UDim2.fromOffset(10, 122),
         Size = UDim2.new(1, -20, 0, 23),
-        ZIndex = HudFrame.ZIndex + 1,
-        Parent = HudFrame,
+        ZIndex = Body.ZIndex + 1,
+        Parent = Body,
     })
 
-    local RarityList = New("UIListLayout", {
+    New("UIListLayout", {
         FillDirection = Enum.FillDirection.Horizontal,
         HorizontalFlex = Enum.UIFlexAlignment.Fill,
         Padding = UDim.new(0, 6),
@@ -3042,25 +3085,27 @@ function Library:CreateServerFinderHUD(Info)
         TopImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
         ScrollBarImageColor3 = "OutlineColor",
         ScrollBarThickness = 3,
-        Position = UDim2.fromOffset(10, 190),
-        Size = UDim2.new(1, -20, 1, -200),
-        ZIndex = HudFrame.ZIndex + 1,
-        Parent = HudFrame,
+        Position = UDim2.fromOffset(10, 154),
+        Size = UDim2.new(1, -20, 1, -164),
+        ZIndex = Body.ZIndex + 1,
+        Parent = Body,
     })
 
-    local RowsList = New("UIListLayout", {
+    New("UIListLayout", {
         Padding = UDim.new(0, 7),
         Parent = RowsFrame,
     })
 
     local EmptyLabel = New("TextLabel", {
         BackgroundColor3 = "MainColor",
-        BackgroundTransparency = 0.30,
-        Size = UDim2.new(1, -4, 0, 42),
-        Text = "No fresh servers found.",
+        BackgroundTransparency = 0.34,
+        Size = UDim2.new(1, -4, 0, 58),
+        Text = "No fresh servers found\nTry Refresh or change filters",
         TextSize = 12,
-        TextTransparency = 0.45,
-        ZIndex = HudFrame.ZIndex + 2,
+        TextTransparency = 0.44,
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ZIndex = Body.ZIndex + 2,
         Parent = RowsFrame,
     })
 
@@ -3074,12 +3119,15 @@ function Library:CreateServerFinderHUD(Info)
 
     New("UIStroke", {
         Color = "OutlineColor",
-        Transparency = 0.40,
+        Transparency = 0.46,
         Parent = EmptyLabel,
     })
 
     local RowObjects =
         {}
+
+    local CurrentServerText =
+        "---"
 
     local function Clean(value)
 
@@ -3099,6 +3147,18 @@ function Library:CreateServerFinderHUD(Info)
 
         return value:sub(1, 8)
             .. "..."
+    end
+
+    local function UpdateInfoLabel()
+
+        InfoLabel.Text =
+            "Current: "
+            .. tostring(CurrentServerText)
+            .. " · "
+            .. tostring(#Hud.FilteredRows)
+            .. "/"
+            .. tostring(#Hud.Rows)
+            .. " servers"
     end
 
     local function RowName(row)
@@ -3332,9 +3392,9 @@ function Library:CreateServerFinderHUD(Info)
 
         local Holder = New("Frame", {
             BackgroundColor3 = "MainColor",
-            BackgroundTransparency = full and 0.48 or 0.18,
+            BackgroundTransparency = full and 0.56 or 0.30,
             Size = UDim2.new(1, -4, 0, RowHeight),
-            ZIndex = HudFrame.ZIndex + 2,
+            ZIndex = Body.ZIndex + 2,
             Parent = RowsFrame,
         })
 
@@ -3348,12 +3408,13 @@ function Library:CreateServerFinderHUD(Info)
 
         New("UIStroke", {
             Color = "OutlineColor",
-            Transparency = full and 0.55 or 0.22,
+            Transparency = full and 0.58 or 0.32,
             Parent = Holder,
         })
 
         local Dot = New("Frame", {
             BackgroundColor3 = full and "OutlineColor" or "AccentColor",
+            BackgroundTransparency = full and 0.45 or 0,
             Position = UDim2.fromOffset(8, 8),
             Size = UDim2.fromOffset(6, 6),
             ZIndex = Holder.ZIndex + 1,
@@ -3374,7 +3435,7 @@ function Library:CreateServerFinderHUD(Info)
             Size = UDim2.new(1, -90, 0, 18),
             Text = RowName(row),
             TextSize = 12,
-            TextTransparency = full and 0.48 or 0.02,
+            TextTransparency = full and 0.50 or 0.03,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextTruncate = Enum.TextTruncate.AtEnd,
             ZIndex = Holder.ZIndex + 1,
@@ -3387,7 +3448,7 @@ function Library:CreateServerFinderHUD(Info)
             Size = UDim2.new(1, -90, 0, 18),
             Text = RowMeta(row),
             TextSize = 11,
-            TextTransparency = full and 0.62 or 0.42,
+            TextTransparency = full and 0.64 or 0.42,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextTruncate = Enum.TextTruncate.AtEnd,
             ZIndex = Holder.ZIndex + 1,
@@ -3397,6 +3458,7 @@ function Library:CreateServerFinderHUD(Info)
         local JoinButton = New("TextButton", {
             Active = full ~= true,
             BackgroundColor3 = full and "BackgroundColor" or Color3.fromRGB(39, 142, 68),
+            BackgroundTransparency = full and 0.26 or 0.02,
             Position = UDim2.new(1, -65, 0, 9),
             Size = UDim2.fromOffset(56, 34),
             Text = full and "Full" or "Join",
@@ -3474,11 +3536,7 @@ function Library:CreateServerFinderHUD(Info)
             )
         end
 
-        CountLabel.Text =
-            tostring(#filtered)
-            .. "/"
-            .. tostring(#Hud.Rows)
-            .. " server(s)"
+        UpdateInfoLabel()
     end
 
     function Hud:SetRows(rows)
@@ -3501,9 +3559,29 @@ function Library:CreateServerFinderHUD(Info)
                 "---"
         end
 
-        CurrentLabel.Text =
-            "Current server: "
-            .. ShortJob(jobId)
+        CurrentServerText =
+            ShortJob(jobId)
+
+        UpdateInfoLabel()
+    end
+
+    function Hud:SetMinimized(minimized)
+
+        Hud.Minimized =
+            minimized == true
+
+        Body.Visible =
+            Hud.Minimized ~= true
+
+        HudFrame.Size =
+            Hud.Minimized == true
+            and UDim2.fromOffset(Width, CollapsedHeight)
+            or UDim2.fromOffset(Width, Height)
+
+        MinimizeButton.Text =
+            Hud.Minimized == true
+            and "+"
+            or "−"
     end
 
     function Hud:SetVisible(visible)
@@ -3544,6 +3622,13 @@ function Library:CreateServerFinderHUD(Info)
     CloseButton.MouseButton1Click:Connect(function()
 
         Hud:Hide()
+    end)
+
+    MinimizeButton.MouseButton1Click:Connect(function()
+
+        Hud:SetMinimized(
+            Hud.Minimized ~= true
+        )
     end)
 
     RefreshButton.MouseButton1Click:Connect(function()
@@ -3598,20 +3683,42 @@ function Library:CreateServerFinderHUD(Info)
         Hud:Refresh()
     end)
 
+    task.spawn(function()
+
+        while HudFrame.Parent ~= nil do
+
+            if Hud.Visible == true
+            and Hud.AutoRefresh == true
+            and type(Hud.OnRefresh) == "function" then
+
+                Library:SafeCallback(
+                    Hud.OnRefresh,
+                    Hud
+                )
+            end
+
+            task.wait(
+                5
+            )
+        end
+    end)
+
     SetButtonSelected(
         AutoRefreshButton,
-        false
+        Hud.AutoRefresh
     )
 
     SetButtonSelected(
         HideFullButton,
-        true
+        Hud.HideFull
     )
 
     Hud:SetCurrentServer(
         Info.CurrentServer
         or ""
     )
+
+    Hud:Refresh()
 
     Library:MakeDraggable(
         HudFrame,
@@ -3621,7 +3728,6 @@ function Library:CreateServerFinderHUD(Info)
 
     return Hud
 end
-
 --// Watermark - Deprecated \\--
 do
     local WatermarkLabel = Library:AddDraggableLabel("")
