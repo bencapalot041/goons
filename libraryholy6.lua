@@ -3097,10 +3097,15 @@ function Library:CreateServerFinderHUD(Info)
             .. "..."
     end
 
+    local HudInitialPosition =
+        typeof(Info.Position) == "UDim2"
+        and Info.Position
+        or UDim2.fromOffset(92, 92)
+
     local HudFrame = New("Frame", {
         BackgroundColor3 = "BackgroundColor",
         BackgroundTransparency = 0.18,
-        Position = Info.Position or UDim2.fromOffset(92, 92),
+        Position = HudInitialPosition,
         Size = UDim2.fromOffset(Width, Height),
         Visible = false,
         ZIndex = 9000,
@@ -3412,11 +3417,16 @@ function Library:CreateServerFinderHUD(Info)
         Parent = EmptyLabel,
     })
 
+    local FilterInitialPosition =
+        typeof(Info.FilterPosition) == "UDim2"
+        and Info.FilterPosition
+        or UDim2.fromOffset(414, 92)
+
     local FilterFrame = New("Frame", {
         BackgroundColor3 = "BackgroundColor",
         BackgroundTransparency = 0.12,
         ClipsDescendants = true,
-        Position = Info.FilterPosition or UDim2.fromOffset(414, 92),
+        Position = FilterInitialPosition,
         Size = UDim2.fromOffset(FilterWidth, FilterHeight),
         Visible = false,
         ZIndex = 9100,
