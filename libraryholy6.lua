@@ -2687,11 +2687,13 @@ function Library:CreateServerFinderHUD(Info)
 
         SelectedPets = {},
         SelectedRarities = {},
-        SelectedTraits = {},
+        SelectedSizes = {},
+        SelectedVariants = {},
 
         FilterPets = {},
         FilterRarities = {},
-        FilterTraits = {},
+        FilterSizes = {},
+        FilterVariants = {},
 
         Visible = false,
         Minimized = false,
@@ -2984,7 +2986,10 @@ function Library:CreateServerFinderHUD(Info)
             Hud.SelectedRarities
         )
         + CountSelected(
-            Hud.SelectedTraits
+            Hud.SelectedSizes
+        )
+        + CountSelected(
+            Hud.SelectedVariants
         )
     end
 
@@ -3008,7 +3013,7 @@ function Library:CreateServerFinderHUD(Info)
         )
     end
 
-    local function RowTraitValues(row)
+    local function RowSizeValues(row)
 
         local values =
             {}
@@ -3022,6 +3027,16 @@ function Library:CreateServerFinderHUD(Info)
 
             if value ~= "" then
 
+                if value == "Mega" then
+                    value =
+                        "Huge"
+                end
+
+                if value == "Regular" then
+                    value =
+                        "Normal"
+                end
+
                 table.insert(
                     values,
                     value
@@ -3030,6 +3045,54 @@ function Library:CreateServerFinderHUD(Info)
         end
 
         add(row.Size or row.size)
+
+        local display =
+            Clean(
+                row.DisplayName
+                or row.Name
+                or row.Pet
+                or row.petName
+            )
+            :lower()
+
+        if display:find("big", 1, true) then
+            add("Big")
+        end
+
+        if display:find("huge", 1, true)
+        or display:find("mega", 1, true) then
+            add("Huge")
+        end
+
+        return values
+    end
+
+    local function RowVariantValues(row)
+
+        local values =
+            {}
+
+        local function add(value)
+
+            value =
+                Clean(
+                    value
+                )
+
+            if value ~= "" then
+
+                if value == "Normal" then
+                    value =
+                        "Regular"
+                end
+
+                table.insert(
+                    values,
+                    value
+                )
+            end
+        end
+
         add(row.Variant or row.variant)
         add(row.Mutation or row.mutation)
 
@@ -3040,23 +3103,9 @@ function Library:CreateServerFinderHUD(Info)
                 or row.Pet
                 or row.petName
             )
+            :lower()
 
-        local lower =
-            display:lower()
-
-        if lower:find("big", 1, true) then
-            add("Big")
-        end
-
-        if lower:find("huge", 1, true) then
-            add("Huge")
-        end
-
-        if lower:find("mega", 1, true) then
-            add("Mega")
-        end
-
-        if lower:find("rainbow", 1, true) then
+        if display:find("rainbow", 1, true) then
             add("Rainbow")
         end
 
@@ -3793,6 +3842,20 @@ function Library:CreateServerFinderHUD(Info)
         )
 
         MakeSection(
+            "Always Show Pets",
+            BuildCombinedOptions(
+                Hud.FilterPets,
+                function(row)
+
+                    return RowPetName(
+                        row
+                    )
+                end
+            ),
+            Hud.SelectedPets
+        )
+
+        MakeSection(
             "Always Show Rarities",
             BuildCombinedOptions(
                 Hud.FilterRarities,
@@ -3807,17 +3870,31 @@ function Library:CreateServerFinderHUD(Info)
         )
 
         MakeSection(
-            "Also Show Variants",
+            "Always Show Sizes",
             BuildCombinedOptions(
-                Hud.FilterTraits,
+                Hud.FilterSizes,
                 function(row)
 
-                    return RowTraitValues(
+                    return RowSizeValues(
                         row
                     )
                 end
             ),
-            Hud.SelectedTraits
+            Hud.SelectedSizes
+        )
+
+        MakeSection(
+            "Always Show Variants",
+            BuildCombinedOptions(
+                Hud.FilterVariants,
+                function(row)
+
+                    return RowVariantValues(
+                        row
+                    )
+                end
+            ),
+            Hud.SelectedVariants
         )
 
         local Rules = New("Frame", {
@@ -4030,7 +4107,11 @@ function Library:CreateServerFinderHUD(Info)
             )
 
             table.clear(
-                Hud.SelectedTraits
+                Hud.SelectedSizes
+            )
+
+            table.clear(
+                Hud.SelectedVariants
             )
 
             RebuildFilterPopup()
@@ -4214,7 +4295,7 @@ function Library:CreateServerFinderHUD(Info)
         )
     end
 
-    local function NormalizeFinderTrait(value)
+    local function NormalizeFinderSize(value)
 
         local text =
             Clean(
@@ -4223,41 +4304,107 @@ function Library:CreateServerFinderHUD(Info)
             :lower()
             :gsub("%s+", " ")
 
-        if text == "regular" then
-            return "normal"
-        end
-
         if text == "mega" then
             return "huge"
         end
 
-        if text == "mega rainbow" then
-            return "huge rainbow"
+        if text == "regular" then
+            return "normal"
         end
 
         return text
     end
 
-    local function PetMatchesTrait(pet, trait)
+    local function NormalizeFinderVariant(value)
 
-        trait =
-            NormalizeFinderTrait(
-                trait
+        local text =
+            Clean(
+                value
+            )
+            :lower()
+            :gsub("%s+", " ")
+
+        if text == "normal" then
+            return "regular"
+        end
+
+        return text
+    end
+
+    local function PetMatchesSize(pet, wantedSize)
+
+        wantedSize =
+            NormalizeFinderSize(
+                wantedSize
             )
 
-        if trait == "" then
+        if wantedSize == "" then
             return false
         end
 
         local size =
-            NormalizeFinderTrait(
+            NormalizeFinderSize(
                 pet.Size
                 or pet.size
                 or ""
             )
 
+        local text =
+            table.concat({
+                tostring(pet.DisplayName or ""),
+                tostring(pet.Name or ""),
+                tostring(pet.Pet or ""),
+                tostring(pet.PetName or ""),
+                tostring(pet.Size or ""),
+                tostring(pet.size or ""),
+            }, " ")
+            :lower()
+
+        local hasBig =
+            size == "big"
+            or text:find("big", 1, true) ~= nil
+
+        local hasHuge =
+            size == "huge"
+            or text:find("huge", 1, true) ~= nil
+            or text:find("mega", 1, true) ~= nil
+
+        local hasNormal =
+            (
+                size == ""
+                or size == "normal"
+            )
+            and hasBig ~= true
+            and hasHuge ~= true
+
+        if wantedSize == "normal" then
+            return hasNormal == true
+        end
+
+        if wantedSize == "big" then
+            return hasBig == true
+        end
+
+        if wantedSize == "huge" then
+            return hasHuge == true
+        end
+
+        return false
+    end
+
+    local function PetMatchesVariant(pet, wantedVariant)
+
+        wantedVariant =
+            NormalizeFinderVariant(
+                wantedVariant
+            )
+
+        if wantedVariant == "" then
+            return false
+        end
+
         local variant =
-            NormalizeFinderTrait(
+            NormalizeFinderVariant(
                 pet.Variant
                 or pet.variant
                 or pet.Mutation
@@ -4271,8 +4418,6 @@ function Library:CreateServerFinderHUD(Info)
                 tostring(pet.Name or ""),
                 tostring(pet.Pet or ""),
                 tostring(pet.PetName or ""),
-                tostring(pet.Size or ""),
-                tostring(pet.size or ""),
                 tostring(pet.Variant or ""),
                 tostring(pet.variant or ""),
                 tostring(pet.Mutation or ""),
@@ -4284,83 +4429,90 @@ function Library:CreateServerFinderHUD(Info)
             variant == "rainbow"
             or text:find("rainbow", 1, true) ~= nil
 
-        local hasBig =
-            size == "big"
-            or text:find("big", 1, true) ~= nil
-
-        local hasHuge =
-            size == "huge"
-            or text:find("huge", 1, true) ~= nil
-            or text:find("mega", 1, true) ~= nil
-
-        local hasNormalSize =
-            (
-                size == ""
-                or size == "normal"
-            )
-            and hasBig ~= true
-            and hasHuge ~= true
-
-        local hasNormalVariant =
+        local hasRegular =
             (
                 variant == ""
-                or variant == "normal"
+                or variant == "regular"
             )
             and hasRainbow ~= true
 
-        if trait == "normal" then
-
-            return hasNormalSize == true
-                and hasNormalVariant == true
+        if wantedVariant == "regular" then
+            return hasRegular == true
         end
 
-        if trait == "big" then
-            return hasBig == true
-        end
-
-        if trait == "huge" then
-            return hasHuge == true
-        end
-
-        if trait == "rainbow" then
+        if wantedVariant == "rainbow" then
             return hasRainbow == true
         end
 
-        if trait == "big rainbow" then
-            return hasBig == true
-                and hasRainbow == true
-        end
-
-        if trait == "huge rainbow" then
-            return hasHuge == true
-                and hasRainbow == true
-        end
-
-        return text:find(
-            trait,
-            1,
-            true
-        ) ~= nil
+        return false
     end
 
-    local function RowMatchesAlwaysTraits(row)
+    local function RowMatchesAlwaysSizes(row)
 
-        if CountSelected(Hud.SelectedTraits) <= 0 then
+        if CountSelected(Hud.SelectedSizes) <= 0 then
             return false
         end
 
         for _, pet in ipairs(RowPets(row)) do
 
-            for trait in pairs(Hud.SelectedTraits) do
+            for size in pairs(Hud.SelectedSizes) do
 
-                if PetMatchesTrait(
+                if PetMatchesSize(
                     pet,
-                    trait
+                    size
                 ) == true then
 
                     return true
                 end
             end
+        end
+
+        return false
+    end
+
+    local function RowMatchesAlwaysVariants(row)
+
+        if CountSelected(Hud.SelectedVariants) <= 0 then
+            return false
+        end
+
+        for _, pet in ipairs(RowPets(row)) do
+
+            for variant in pairs(Hud.SelectedVariants) do
+
+                if PetMatchesVariant(
+                    pet,
+                    variant
+                ) == true then
+
+                    return true
+                end
+            end
+        end
+
+        return false
+    end
+
+    local function RowMatchesAlwaysFilters(row)
+
+        if CountAllFilters() <= 0 then
+            return true
+        end
+
+        if RowMatchesAlwaysPets(row) == true then
+            return true
+        end
+
+        if RowMatchesAlwaysRarities(row) == true then
+            return true
+        end
+
+        if RowMatchesAlwaysSizes(row) == true then
+            return true
+        end
+
+        if RowMatchesAlwaysVariants(row) == true then
+            return true
         end
 
         return false
@@ -4943,11 +5095,19 @@ function Library:CreateServerFinderHUD(Info)
                 )
         end
 
-        if type(options.Traits) == "table" then
+        if type(options.Sizes) == "table" then
 
-            Hud.FilterTraits =
+            Hud.FilterSizes =
                 NormalizeList(
-                    options.Traits
+                    options.Sizes
+                )
+        end
+
+        if type(options.Variants) == "table" then
+
+            Hud.FilterVariants =
+                NormalizeList(
+                    options.Variants
                 )
         end
 
@@ -5021,9 +5181,14 @@ function Library:CreateServerFinderHUD(Info)
                     Hud.SelectedRarities
                 ),
 
-            SelectedTraits =
+            SelectedSizes =
                 SelectionListFromMap(
-                    Hud.SelectedTraits
+                    Hud.SelectedSizes
+                ),
+
+            SelectedVariants =
+                SelectionListFromMap(
+                    Hud.SelectedVariants
                 ),
 
             Minimized =
@@ -5076,9 +5241,16 @@ function Library:CreateServerFinderHUD(Info)
                 settings.SelectedRarities
             )
 
-        Hud.SelectedTraits =
+        Hud.SelectedSizes =
             SelectionMapFromList(
-                settings.SelectedTraits
+                settings.SelectedSizes
+                or settings.SelectedTraits
+            )
+
+        Hud.SelectedVariants =
+            SelectionMapFromList(
+                settings.SelectedVariants
+                or settings.SelectedTraits
             )
 
         ApplySavedPosition(
@@ -5449,9 +5621,14 @@ function Library:CreateServerFinderHUD(Info)
             Info.FilterRarities
         )
 
-    Hud.FilterTraits =
+    Hud.FilterSizes =
         NormalizeList(
-            Info.FilterTraits
+            Info.FilterSizes
+        )
+
+    Hud.FilterVariants =
+        NormalizeList(
+            Info.FilterVariants
         )
 
     Hud.SelectedPets =
@@ -5464,9 +5641,16 @@ function Library:CreateServerFinderHUD(Info)
             Info.SelectedRarities
         )
 
-    Hud.SelectedTraits =
+    Hud.SelectedSizes =
         SelectionMapFromList(
-            Info.SelectedTraits
+            Info.SelectedSizes
+            or Info.SelectedTraits
+        )
+
+    Hud.SelectedVariants =
+        SelectionMapFromList(
+            Info.SelectedVariants
+            or Info.SelectedTraits
         )
 
     ApplySavedPosition(
