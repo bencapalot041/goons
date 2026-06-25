@@ -2675,14 +2675,22 @@ function Library:CreateServerFinderHUD(Info)
         Rows = {},
         FilteredRows = {},
         SearchText = "",
+
         HideFull = Info.HideFull ~= false,
         AutoRefresh = Info.AutoRefresh == true,
+
         SelectedPets = {},
         SelectedRarities = {},
         SelectedTraits = {},
+
+        FilterPets = {},
+        FilterRarities = {},
+        FilterTraits = {},
+
         Visible = false,
         Minimized = false,
         FiltersVisible = false,
+
         OnRefresh = Info.OnRefresh,
         OnJoin = Info.OnJoin,
     }
@@ -2704,11 +2712,213 @@ function Library:CreateServerFinderHUD(Info)
 
     local FilterWidth =
         tonumber(Info.FilterWidth)
-        or 374
+        or 330
 
     local FilterHeight =
         tonumber(Info.FilterHeight)
-        or 360
+        or 356
+
+    local function Clean(value)
+
+        return tostring(value or "")
+            :gsub("^%s+", "")
+            :gsub("%s+$", "")
+    end
+
+    local function AddUnique(list, seen, value)
+
+        value =
+            Clean(
+                value
+            )
+
+        if value == "" then
+            return false
+        end
+
+        local key =
+            value:lower()
+
+        if seen[key] == true then
+            return false
+        end
+
+        seen[key] =
+            true
+
+        table.insert(
+            list,
+            value
+        )
+
+        return true
+    end
+
+    local function NormalizeList(list)
+
+        local output =
+            {}
+
+        local seen =
+            {}
+
+        if type(list) == "table" then
+
+            for _, value in ipairs(list) do
+
+                AddUnique(
+                    output,
+                    seen,
+                    value
+                )
+            end
+        end
+
+        table.sort(output, function(a, b)
+
+            return tostring(a):lower()
+                < tostring(b):lower()
+        end)
+
+        return output
+    end
+
+    local function CountSelected(map)
+
+        local count =
+            0
+
+        for _ in pairs(map or {}) do
+
+            count =
+                count
+                + 1
+        end
+
+        return count
+    end
+
+    local function CountAllFilters()
+
+        return CountSelected(
+            Hud.SelectedPets
+        )
+        + CountSelected(
+            Hud.SelectedRarities
+        )
+        + CountSelected(
+            Hud.SelectedTraits
+        )
+    end
+
+    local function RowPetName(row)
+
+        return Clean(
+            row.Pet
+            or row.petName
+            or row.PetName
+            or row.DisplayName
+            or row.Name
+            or row.name
+        )
+    end
+
+    local function RowRarity(row)
+
+        return Clean(
+            row.Rarity
+            or row.rarity
+        )
+    end
+
+    local function RowTraitValues(row)
+
+        local values =
+            {}
+
+        local function add(value)
+
+            value =
+                Clean(
+                    value
+                )
+
+            if value ~= "" then
+
+                table.insert(
+                    values,
+                    value
+                )
+            end
+        end
+
+        add(row.Size or row.size)
+        add(row.Variant or row.variant)
+        add(row.Mutation or row.mutation)
+
+        local display =
+            Clean(
+                row.DisplayName
+                or row.Name
+                or row.Pet
+                or row.petName
+            )
+
+        local lower =
+            display:lower()
+
+        if lower:find("big", 1, true) then
+            add("Big")
+        end
+
+        if lower:find("huge", 1, true) then
+            add("Huge")
+        end
+
+        if lower:find("mega", 1, true) then
+            add("Mega")
+        end
+
+        if lower:find("rainbow", 1, true) then
+            add("Rainbow")
+        end
+
+        return values
+    end
+
+    local function RowHaystack(row)
+
+        return table.concat({
+            tostring(row.DisplayName or ""),
+            tostring(row.Name or ""),
+            tostring(row.Pet or ""),
+            tostring(row.petName or ""),
+            tostring(row.PetName or ""),
+            tostring(row.Rarity or ""),
+            tostring(row.rarity or ""),
+            tostring(row.Size or ""),
+            tostring(row.size or ""),
+            tostring(row.Variant or ""),
+            tostring(row.variant or ""),
+            tostring(row.Mutation or ""),
+            tostring(row.mutation or ""),
+        }, " "):lower()
+    end
+
+    local function ShortJob(value)
+
+        value =
+            Clean(
+                value
+            )
+
+        if #value <= 12 then
+            return value
+        end
+
+        return value:sub(1, 8)
+            .. "..."
+    end
 
     local HudFrame = New("Frame", {
         BackgroundColor3 = "BackgroundColor",
@@ -2748,7 +2958,7 @@ function Library:CreateServerFinderHUD(Info)
         Parent = HudFrame,
     })
 
-    local TitleLabel = New("TextLabel", {
+    New("TextLabel", {
         BackgroundTransparency = 1,
         Position = UDim2.fromOffset(10, 0),
         Size = UDim2.new(1, -76, 1, 0),
@@ -2918,34 +3128,6 @@ function Library:CreateServerFinderHUD(Info)
         Parent = QuickRow,
     })
 
-    local function Clean(value)
-
-        return tostring(value or "")
-            :gsub("^%s+", "")
-            :gsub("%s+$", "")
-    end
-
-    local function CountSelected(map)
-
-        local count =
-            0
-
-        for _ in pairs(map or {}) do
-
-            count =
-                count + 1
-        end
-
-        return count
-    end
-
-    local function CountAllFilters()
-
-        return CountSelected(Hud.SelectedPets)
-            + CountSelected(Hud.SelectedRarities)
-            + CountSelected(Hud.SelectedTraits)
-    end
-
     local function MakeSmallButton(parent, text)
 
         local button = New("TextButton", {
@@ -2955,6 +3137,7 @@ function Library:CreateServerFinderHUD(Info)
             Text = text,
             TextSize = 11,
             TextTransparency = 0.44,
+            TextTruncate = Enum.TextTruncate.AtEnd,
             ZIndex = (parent and parent.ZIndex or Body.ZIndex) + 1,
             Parent = parent,
         })
@@ -3055,6 +3238,7 @@ function Library:CreateServerFinderHUD(Info)
     local FilterFrame = New("Frame", {
         BackgroundColor3 = "BackgroundColor",
         BackgroundTransparency = 0.12,
+        ClipsDescendants = true,
         Position = Info.FilterPosition or UDim2.fromOffset(414, 92),
         Size = UDim2.fromOffset(FilterWidth, FilterHeight),
         Visible = false,
@@ -3137,48 +3321,41 @@ function Library:CreateServerFinderHUD(Info)
         }
     )
 
-    local FilterBody = New("Frame", {
+    local FilterScroll = New("ScrollingFrame", {
+        Active = true,
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(12, 43),
-        Size = UDim2.new(1, -24, 1, -55),
+        BorderSizePixel = 0,
+        CanvasSize = UDim2.fromOffset(0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        BottomImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
+        MidImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
+        TopImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
+        ScrollBarImageColor3 = "OutlineColor",
+        ScrollBarThickness = 3,
+        Position = UDim2.fromOffset(10, 43),
+        Size = UDim2.new(1, -20, 1, -53),
         ZIndex = FilterFrame.ZIndex + 1,
         Parent = FilterFrame,
     })
 
-    local function MakeSectionLabel(text, y)
+    New("UIListLayout", {
+        Padding = UDim.new(0, 11),
+        Parent = FilterScroll,
+    })
 
-        return New("TextLabel", {
-            BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(0, y),
-            Size = UDim2.new(1, 0, 0, 18),
-            Text = text,
-            TextSize = 13,
-            TextTransparency = 0.12,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = FilterBody.ZIndex + 1,
-            Parent = FilterBody,
-        })
-    end
+    New("UIPadding", {
+        PaddingBottom = UDim.new(0, 10),
+        Parent = FilterScroll,
+    })
 
-    local function MakeButtonRow(y, height)
+    local RowObjects =
+        {}
 
-        local row = New("Frame", {
-            BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(0, y),
-            Size = UDim2.new(1, 0, 0, height or 28),
-            ZIndex = FilterBody.ZIndex + 1,
-            Parent = FilterBody,
-        })
+    local FilterSections =
+        {}
 
-        New("UIListLayout", {
-            FillDirection = Enum.FillDirection.Horizontal,
-            HorizontalFlex = Enum.UIFlexAlignment.Fill,
-            Padding = UDim.new(0, 7),
-            Parent = row,
-        })
-
-        return row
-    end
+    local CurrentServerText =
+        "---"
 
     local function UpdateFilterButtonText()
 
@@ -3203,184 +3380,333 @@ function Library:CreateServerFinderHUD(Info)
         )
     end
 
-    local function MakeFilterChip(parent, text, map)
+    local function BuildCombinedOptions(baseList, getter)
 
-        local button =
-            MakeSmallButton(
-                parent,
-                text
+        local output =
+            {}
+
+        local seen =
+            {}
+
+        for _, value in ipairs(baseList or {}) do
+
+            AddUnique(
+                output,
+                seen,
+                value
+            )
+        end
+
+        for _, row in ipairs(Hud.Rows or {}) do
+
+            local values =
+                getter(row)
+
+            if type(values) == "table" then
+
+                for _, value in ipairs(values) do
+
+                    AddUnique(
+                        output,
+                        seen,
+                        value
+                    )
+                end
+
+            else
+
+                AddUnique(
+                    output,
+                    seen,
+                    values
+                )
+            end
+        end
+
+        table.sort(output, function(a, b)
+
+            return tostring(a):lower()
+                < tostring(b):lower()
+        end)
+
+        return output
+    end
+
+    local function DestroyFilterSections()
+
+        for _, section in ipairs(FilterSections) do
+
+            if section
+            and section.Parent then
+
+                section:Destroy()
+            end
+        end
+
+        table.clear(
+            FilterSections
+        )
+    end
+
+    local function MakeSection(title, values, selectedMap)
+
+        values =
+            NormalizeList(
+                values
             )
 
-        SetButtonSelected(
-            button,
-            map[text] == true
+        if #values <= 0 then
+            return
+        end
+
+        local Section = New("Frame", {
+            BackgroundTransparency = 1,
+            AutomaticSize = Enum.AutomaticSize.Y,
+            Size = UDim2.new(1, -4, 0, 0),
+            ZIndex = FilterScroll.ZIndex + 1,
+            Parent = FilterScroll,
+        })
+
+        table.insert(
+            FilterSections,
+            Section
         )
 
-        button.MouseButton1Click:Connect(function()
+        New("UIListLayout", {
+            Padding = UDim.new(0, 6),
+            Parent = Section,
+        })
 
-            map[text] =
-                map[text] ~= true
-                and true
-                or nil
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 17),
+            Text = title,
+            TextSize = 13,
+            TextTransparency = 0.12,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = Section.ZIndex + 1,
+            Parent = Section,
+        })
+
+        local Grid = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 0),
+            ZIndex = Section.ZIndex + 1,
+            Parent = Section,
+        })
+
+        local columns =
+            title == "Pets"
+            and 2
+            or 3
+
+        local GridLayout = New("UIGridLayout", {
+            CellPadding = UDim2.fromOffset(7, 7),
+            CellSize = UDim2.new(1 / columns, -7, 0, 25),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Parent = Grid,
+        })
+
+        local function resizeGrid()
+
+            Grid.Size =
+                UDim2.new(
+                    1,
+                    0,
+                    0,
+                    GridLayout.AbsoluteContentSize.Y
+                )
+        end
+
+        GridLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(
+            resizeGrid
+        )
+
+        for _, value in ipairs(values) do
+
+            local button =
+                MakeSmallButton(
+                    Grid,
+                    value
+                )
 
             SetButtonSelected(
                 button,
-                map[text] == true
+                selectedMap[value] == true
             )
 
-            UpdateFilterButtonText()
+            button.MouseButton1Click:Connect(function()
+
+                selectedMap[value] =
+                    selectedMap[value] ~= true
+                    and true
+                    or nil
+
+                SetButtonSelected(
+                    button,
+                    selectedMap[value] == true
+                )
+
+                UpdateFilterButtonText()
+
+                Hud:Refresh()
+            end)
+        end
+
+        task.defer(
+            resizeGrid
+        )
+    end
+
+    local function RebuildFilterPopup()
+
+        DestroyFilterSections()
+
+        MakeSection(
+            "Pets",
+            BuildCombinedOptions(
+                Hud.FilterPets,
+                function(row)
+
+                    return RowPetName(
+                        row
+                    )
+                end
+            ),
+            Hud.SelectedPets
+        )
+
+        MakeSection(
+            "Rarity",
+            BuildCombinedOptions(
+                Hud.FilterRarities,
+                function(row)
+
+                    return RowRarity(
+                        row
+                    )
+                end
+            ),
+            Hud.SelectedRarities
+        )
+
+        MakeSection(
+            "Size / Variant",
+            BuildCombinedOptions(
+                Hud.FilterTraits,
+                function(row)
+
+                    return RowTraitValues(
+                        row
+                    )
+                end
+            ),
+            Hud.SelectedTraits
+        )
+
+        local Rules = New("Frame", {
+            BackgroundTransparency = 1,
+            AutomaticSize = Enum.AutomaticSize.Y,
+            Size = UDim2.new(1, -4, 0, 0),
+            ZIndex = FilterScroll.ZIndex + 1,
+            Parent = FilterScroll,
+        })
+
+        table.insert(
+            FilterSections,
+            Rules
+        )
+
+        New("UIListLayout", {
+            Padding = UDim.new(0, 6),
+            Parent = Rules,
+        })
+
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 17),
+            Text = "Rules",
+            TextSize = 13,
+            TextTransparency = 0.12,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = Rules.ZIndex + 1,
+            Parent = Rules,
+        })
+
+        local RuleRow = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 25),
+            ZIndex = Rules.ZIndex + 1,
+            Parent = Rules,
+        })
+
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalFlex = Enum.UIFlexAlignment.Fill,
+            Padding = UDim.new(0, 7),
+            Parent = RuleRow,
+        })
+
+        local HideFullButton =
+            MakeSmallButton(
+                RuleRow,
+                Hud.HideFull and "Hide full: ON" or "Hide full: OFF"
+            )
+
+        SetButtonSelected(
+            HideFullButton,
+            Hud.HideFull
+        )
+
+        local ClearFiltersButton =
+            MakeSmallButton(
+                RuleRow,
+                "Clear Filters"
+            )
+
+        SetButtonSelected(
+            ClearFiltersButton,
+            false
+        )
+
+        HideFullButton.MouseButton1Click:Connect(function()
+
+            Hud.HideFull =
+                Hud.HideFull ~= true
+
+            HideFullButton.Text =
+                Hud.HideFull
+                and "Hide full: ON"
+                or "Hide full: OFF"
+
+            SetButtonSelected(
+                HideFullButton,
+                Hud.HideFull
+            )
 
             Hud:Refresh()
         end)
 
-        return button
-    end
+        ClearFiltersButton.MouseButton1Click:Connect(function()
 
-    MakeSectionLabel(
-        "Pets",
-        0
-    )
+            table.clear(
+                Hud.SelectedPets
+            )
 
-    local PetRow1 =
-        MakeButtonRow(
-            22,
-            28
-        )
+            table.clear(
+                Hud.SelectedRarities
+            )
 
-    MakeFilterChip(PetRow1, "Raccoon", Hud.SelectedPets)
-    MakeFilterChip(PetRow1, "Golden Dragonfly", Hud.SelectedPets)
-    MakeFilterChip(PetRow1, "Unicorn", Hud.SelectedPets)
+            table.clear(
+                Hud.SelectedTraits
+            )
 
-    local PetRow2 =
-        MakeButtonRow(
-            56,
-            28
-        )
+            RebuildFilterPopup()
 
-    MakeFilterChip(PetRow2, "Ice Serpent", Hud.SelectedPets)
-    MakeFilterChip(PetRow2, "Monkey", Hud.SelectedPets)
-    MakeFilterChip(PetRow2, "Bear", Hud.SelectedPets)
+            Hud:Refresh()
+        end)
 
-    local PetRow3 =
-        MakeButtonRow(
-            90,
-            28
-        )
-
-    MakeFilterChip(PetRow3, "Black Dragon", Hud.SelectedPets)
-    MakeFilterChip(PetRow3, "Bunny", Hud.SelectedPets)
-    MakeFilterChip(PetRow3, "Frog", Hud.SelectedPets)
-    MakeFilterChip(PetRow3, "Owl", Hud.SelectedPets)
-
-    local PetRow4 =
-        MakeButtonRow(
-            124,
-            28
-        )
-
-    MakeFilterChip(PetRow4, "Deer", Hud.SelectedPets)
-    MakeFilterChip(PetRow4, "Robin", Hud.SelectedPets)
-    MakeFilterChip(PetRow4, "Bee", Hud.SelectedPets)
-
-    MakeSectionLabel(
-        "Rarity",
-        166
-    )
-
-    local RarityRow =
-        MakeButtonRow(
-            188,
-            28
-        )
-
-    MakeFilterChip(RarityRow, "Legendary", Hud.SelectedRarities)
-    MakeFilterChip(RarityRow, "Mythic", Hud.SelectedRarities)
-    MakeFilterChip(RarityRow, "Super", Hud.SelectedRarities)
-    MakeFilterChip(RarityRow, "Secret", Hud.SelectedRarities)
-
-    MakeSectionLabel(
-        "Size / Variant",
-        230
-    )
-
-    local TraitRow =
-        MakeButtonRow(
-            252,
-            28
-        )
-
-    MakeFilterChip(TraitRow, "Big", Hud.SelectedTraits)
-    MakeFilterChip(TraitRow, "Huge", Hud.SelectedTraits)
-    MakeFilterChip(TraitRow, "Rainbow", Hud.SelectedTraits)
-
-    MakeSectionLabel(
-        "Rules",
-        294
-    )
-
-    local RuleRow =
-        MakeButtonRow(
-            316,
-            28
-        )
-
-    local HideFullButton =
-        MakeSmallButton(
-            RuleRow,
-            Hud.HideFull and "Hide full: ON" or "Hide full: OFF"
-        )
-
-    SetButtonSelected(
-        HideFullButton,
-        Hud.HideFull
-    )
-
-    local ClearFiltersButton =
-        MakeSmallButton(
-            RuleRow,
-            "Clear Filters"
-        )
-
-    SetButtonSelected(
-        ClearFiltersButton,
-        false
-    )
-
-    local RowObjects =
-        {}
-
-    local CurrentServerText =
-        "---"
-
-    local function ShortJob(value)
-
-        value =
-            Clean(value)
-
-        if #value <= 12 then
-            return value
-        end
-
-        return value:sub(1, 8)
-            .. "..."
-    end
-
-    local function RowHaystack(row)
-
-        return table.concat({
-            tostring(row.DisplayName or ""),
-            tostring(row.Name or ""),
-            tostring(row.Pet or ""),
-            tostring(row.petName or ""),
-            tostring(row.Rarity or ""),
-            tostring(row.rarity or ""),
-            tostring(row.Size or ""),
-            tostring(row.size or ""),
-            tostring(row.Variant or ""),
-            tostring(row.variant or ""),
-            tostring(row.Mutation or ""),
-            tostring(row.mutation or ""),
-        }, " "):lower()
+        UpdateFilterButtonText()
     end
 
     local function RowMatchesSearch(row)
@@ -3404,6 +3730,7 @@ function Library:CreateServerFinderHUD(Info)
                 1,
                 true
             ) then
+
                 return true
             end
         end
@@ -3429,6 +3756,7 @@ function Library:CreateServerFinderHUD(Info)
                 1,
                 true
             ) then
+
                 return true
             end
         end
@@ -3443,9 +3771,8 @@ function Library:CreateServerFinderHUD(Info)
         end
 
         local rarity =
-            Clean(
-                row.Rarity
-                or row.rarity
+            RowRarity(
+                row
             )
             :lower()
 
@@ -3465,6 +3792,7 @@ function Library:CreateServerFinderHUD(Info)
                 1,
                 true
             ) then
+
                 return true
             end
         end
@@ -3501,11 +3829,8 @@ function Library:CreateServerFinderHUD(Info)
     local function RowName(row)
 
         local pet =
-            Clean(
-                row.DisplayName
-                or row.Name
-                or row.Pet
-                or row.petName
+            RowPetName(
+                row
             )
 
         if pet == "" then
@@ -3514,9 +3839,8 @@ function Library:CreateServerFinderHUD(Info)
         end
 
         local rarity =
-            Clean(
-                row.Rarity
-                or row.rarity
+            RowRarity(
+                row
             )
 
         if rarity ~= "" then
@@ -3598,6 +3922,7 @@ function Library:CreateServerFinderHUD(Info)
             .. age
 
         if life ~= "" then
+
             meta =
                 meta
                 .. " · "
@@ -3626,7 +3951,9 @@ function Library:CreateServerFinderHUD(Info)
     local function CreateRow(row)
 
         local full =
-            RowIsFull(row)
+            RowIsFull(
+                row
+            )
 
         local Holder = New("Frame", {
             BackgroundColor3 = "MainColor",
@@ -3797,6 +4124,42 @@ function Library:CreateServerFinderHUD(Info)
         UpdateFilterButtonText()
     end
 
+    function Hud:SetFilterOptions(options)
+
+        options =
+            type(options) == "table"
+            and options
+            or {}
+
+        if type(options.Pets) == "table" then
+
+            Hud.FilterPets =
+                NormalizeList(
+                    options.Pets
+                )
+        end
+
+        if type(options.Rarities) == "table" then
+
+            Hud.FilterRarities =
+                NormalizeList(
+                    options.Rarities
+                )
+        end
+
+        if type(options.Traits) == "table" then
+
+            Hud.FilterTraits =
+                NormalizeList(
+                    options.Traits
+                )
+        end
+
+        RebuildFilterPopup()
+
+        Hud:Refresh()
+    end
+
     function Hud:SetRows(rows)
 
         Hud.Rows =
@@ -3804,13 +4167,17 @@ function Library:CreateServerFinderHUD(Info)
             and rows
             or {}
 
+        RebuildFilterPopup()
+
         Hud:Refresh()
     end
 
     function Hud:SetCurrentServer(jobId)
 
         jobId =
-            Clean(jobId)
+            Clean(
+                jobId
+            )
 
         if jobId == "" then
             jobId =
@@ -3818,7 +4185,9 @@ function Library:CreateServerFinderHUD(Info)
         end
 
         CurrentServerText =
-            ShortJob(jobId)
+            ShortJob(
+                jobId
+            )
 
         UpdateInfoLabel()
     end
@@ -3834,31 +4203,71 @@ function Library:CreateServerFinderHUD(Info)
             and workspace.CurrentCamera.ViewportSize
             or Vector2.new(1280, 720)
 
-        local x =
+        local finderX =
             HudFrame.AbsolutePosition.X
-            + HudFrame.AbsoluteSize.X
+
+        local finderY =
+            HudFrame.AbsolutePosition.Y
+
+        local finderW =
+            HudFrame.AbsoluteSize.X
+
+        local finderH =
+            HudFrame.AbsoluteSize.Y
+
+        local x =
+            finderX
+            + finderW
             + 8
 
         local y =
-            HudFrame.AbsolutePosition.Y
+            finderY
 
         if x + FilterWidth > viewport.X - 8 then
 
             x =
-                HudFrame.AbsolutePosition.X
+                finderX
                 - FilterWidth
                 - 8
         end
 
         if x < 8 then
-            x = 8
+
+            x =
+                math.min(
+                    math.max(
+                        8,
+                        finderX
+                    ),
+                    math.max(
+                        8,
+                        viewport.X - FilterWidth - 8
+                    )
+                )
+
+            y =
+                finderY
+                + finderH
+                + 8
         end
 
         if y + FilterHeight > viewport.Y - 8 then
+
+            y =
+                finderY
+                - FilterHeight
+                - 8
+        end
+
+        if y < 8 then
+
             y =
                 math.max(
                     8,
-                    viewport.Y - FilterHeight - 8
+                    math.min(
+                        finderY,
+                        viewport.Y - FilterHeight - 8
+                    )
                 )
         end
 
@@ -4011,56 +4420,6 @@ function Library:CreateServerFinderHUD(Info)
         Hud:ToggleFilters()
     end)
 
-    HideFullButton.MouseButton1Click:Connect(function()
-
-        Hud.HideFull =
-            Hud.HideFull ~= true
-
-        HideFullButton.Text =
-            Hud.HideFull
-            and "Hide full: ON"
-            or "Hide full: OFF"
-
-        SetButtonSelected(
-            HideFullButton,
-            Hud.HideFull
-        )
-
-        Hud:Refresh()
-    end)
-
-    ClearFiltersButton.MouseButton1Click:Connect(function()
-
-        table.clear(
-            Hud.SelectedPets
-        )
-
-        table.clear(
-            Hud.SelectedRarities
-        )
-
-        table.clear(
-            Hud.SelectedTraits
-        )
-
-        for _, button in ipairs(FilterBody:GetDescendants()) do
-
-            if button:IsA("TextButton")
-            and button ~= HideFullButton
-            and button ~= ClearFiltersButton then
-
-                SetButtonSelected(
-                    button,
-                    false
-                )
-            end
-        end
-
-        UpdateFilterButtonText()
-
-        Hud:Refresh()
-    end)
-
     SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
 
         Hud.SearchText =
@@ -4091,22 +4450,32 @@ function Library:CreateServerFinderHUD(Info)
         end
     end)
 
+    Hud.FilterPets =
+        NormalizeList(
+            Info.FilterPets
+        )
+
+    Hud.FilterRarities =
+        NormalizeList(
+            Info.FilterRarities
+        )
+
+    Hud.FilterTraits =
+        NormalizeList(
+            Info.FilterTraits
+        )
+
     SetButtonSelected(
         AutoRefreshButton,
         Hud.AutoRefresh
     )
 
-    SetButtonSelected(
-        HideFullButton,
-        Hud.HideFull
-    )
-
-    UpdateFilterButtonText()
-
     Hud:SetCurrentServer(
         Info.CurrentServer
         or ""
     )
+
+    RebuildFilterPopup()
 
     Hud:Refresh()
 
