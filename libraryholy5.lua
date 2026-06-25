@@ -3065,12 +3065,14 @@ function Library:CreateServerFinderHUD(Info)
 
     local function RowHaystack(row)
 
-        return table.concat({
+        local parts = {
             tostring(row.DisplayName or ""),
             tostring(row.Name or ""),
             tostring(row.Pet or ""),
             tostring(row.petName or ""),
             tostring(row.PetName or ""),
+            tostring(row.BestPet or ""),
+            tostring(row.BestDisplayName or ""),
             tostring(row.Rarity or ""),
             tostring(row.rarity or ""),
             tostring(row.Size or ""),
@@ -3079,7 +3081,30 @@ function Library:CreateServerFinderHUD(Info)
             tostring(row.variant or ""),
             tostring(row.Mutation or ""),
             tostring(row.mutation or ""),
-        }, " "):lower()
+        }
+
+        if type(row.Pets) == "table" then
+
+            for _, pet in ipairs(row.Pets) do
+
+                if type(pet) == "table" then
+
+                    table.insert(parts, tostring(pet.DisplayName or ""))
+                    table.insert(parts, tostring(pet.Name or ""))
+                    table.insert(parts, tostring(pet.Pet or ""))
+                    table.insert(parts, tostring(pet.PetName or ""))
+                    table.insert(parts, tostring(pet.Rarity or ""))
+                    table.insert(parts, tostring(pet.Size or ""))
+                    table.insert(parts, tostring(pet.Variant or ""))
+                    table.insert(parts, tostring(pet.Mutation or ""))
+                end
+            end
+        end
+
+        return table.concat(
+            parts,
+            " "
+        ):lower()
     end
 
     local function ShortJob(value)
@@ -3685,7 +3710,7 @@ function Library:CreateServerFinderHUD(Info)
         })
 
         local columns =
-            title == "Pets"
+            tostring(title):find("Pets", 1, true)
             and 2
             or 3
 
@@ -3754,7 +3779,7 @@ function Library:CreateServerFinderHUD(Info)
         DestroyFilterSections()
 
         MakeSection(
-            "Pets",
+            "Always Show Pets",
             BuildCombinedOptions(
                 Hud.FilterPets,
                 function(row)
@@ -3768,7 +3793,7 @@ function Library:CreateServerFinderHUD(Info)
         )
 
         MakeSection(
-            "Rarity",
+            "Always Show Rarities",
             BuildCombinedOptions(
                 Hud.FilterRarities,
                 function(row)
@@ -3782,7 +3807,7 @@ function Library:CreateServerFinderHUD(Info)
         )
 
         MakeSection(
-            "Size / Variant",
+            "Also Show Variants",
             BuildCombinedOptions(
                 Hud.FilterTraits,
                 function(row)
@@ -4047,21 +4072,58 @@ function Library:CreateServerFinderHUD(Info)
         return false
     end
 
-    local function RowMatchesSelectedMap(row, map)
+    local function RowPets(row)
 
-        if CountSelected(map) <= 0 then
-            return true
+        local pets =
+            {}
+
+        if type(row.Pets) == "table" then
+
+            for _, pet in ipairs(row.Pets) do
+
+                if type(pet) == "table" then
+
+                    table.insert(
+                        pets,
+                        pet
+                    )
+                end
+            end
         end
 
-        local haystack =
-            RowHaystack(
+        if #pets <= 0
+        and type(row) == "table" then
+
+            table.insert(
+                pets,
                 row
             )
+        end
 
-        for value in pairs(map) do
+        return pets
+    end
 
-            if haystack:find(
-                tostring(value):lower(),
+    local function TextMatchesSelection(text, map)
+
+        text =
+            tostring(text or "")
+                :lower()
+
+        if text == "" then
+            return false
+        end
+
+        for value in pairs(map or {}) do
+
+            local needle =
+                Clean(
+                    value
+                )
+                :lower()
+
+            if needle ~= ""
+            and text:find(
+                needle,
                 1,
                 true
             ) then
@@ -4073,37 +4135,253 @@ function Library:CreateServerFinderHUD(Info)
         return false
     end
 
-    local function RowMatchesRarity(row)
+    local function RowMatchesAlwaysPets(row)
 
-        if CountSelected(Hud.SelectedRarities) <= 0 then
-            return true
+        if CountSelected(Hud.SelectedPets) <= 0 then
+            return false
         end
 
-        local rarity =
+        for _, pet in ipairs(RowPets(row)) do
+
+            local text =
+                table.concat({
+                    tostring(pet.DisplayName or ""),
+                    tostring(pet.Name or ""),
+                    tostring(pet.Pet or ""),
+                    tostring(pet.PetName or ""),
+                    tostring(pet.BestPet or ""),
+                    tostring(pet.BestDisplayName or ""),
+                }, " ")
+
+            if TextMatchesSelection(
+                text,
+                Hud.SelectedPets
+            ) == true then
+
+                return true
+            end
+        end
+
+        return TextMatchesSelection(
+            RowHaystack(row),
+            Hud.SelectedPets
+        )
+    end
+
+    local function RowMatchesAlwaysRarities(row)
+
+        if CountSelected(Hud.SelectedRarities) <= 0 then
+            return false
+        end
+
+        for _, pet in ipairs(RowPets(row)) do
+
+            local rarity =
+                Clean(
+                    pet.Rarity
+                    or pet.rarity
+                )
+                :lower()
+
+            for value in pairs(Hud.SelectedRarities) do
+
+                if rarity ~= ""
+                and rarity == Clean(value):lower() then
+
+                    return true
+                end
+            end
+        end
+
+        local rowRarity =
             RowRarity(
                 row
             )
             :lower()
 
-        local haystack =
-            RowHaystack(
-                row
-            )
-
         for value in pairs(Hud.SelectedRarities) do
 
-            value =
-                tostring(value):lower()
-
-            if rarity == value
-            or haystack:find(
-                value,
-                1,
-                true
-            ) then
+            if rowRarity ~= ""
+            and rowRarity == Clean(value):lower() then
 
                 return true
             end
+        end
+
+        return TextMatchesSelection(
+            RowHaystack(row),
+            Hud.SelectedRarities
+        )
+    end
+
+    local function NormalizeFinderTrait(value)
+
+        local text =
+            Clean(
+                value
+            )
+            :lower()
+            :gsub("%s+", " ")
+
+        if text == "regular" then
+            return "normal"
+        end
+
+        if text == "mega" then
+            return "huge"
+        end
+
+        if text == "mega rainbow" then
+            return "huge rainbow"
+        end
+
+        return text
+    end
+
+    local function PetMatchesTrait(pet, trait)
+
+        trait =
+            NormalizeFinderTrait(
+                trait
+            )
+
+        if trait == "" then
+            return false
+        end
+
+        local size =
+            NormalizeFinderTrait(
+                pet.Size
+                or pet.size
+                or ""
+            )
+
+        local variant =
+            NormalizeFinderTrait(
+                pet.Variant
+                or pet.variant
+                or pet.Mutation
+                or pet.mutation
+                or ""
+            )
+
+        local text =
+            table.concat({
+                tostring(pet.DisplayName or ""),
+                tostring(pet.Name or ""),
+                tostring(pet.Pet or ""),
+                tostring(pet.PetName or ""),
+                tostring(pet.Size or ""),
+                tostring(pet.size or ""),
+                tostring(pet.Variant or ""),
+                tostring(pet.variant or ""),
+                tostring(pet.Mutation or ""),
+                tostring(pet.mutation or ""),
+            }, " ")
+            :lower()
+
+        local hasRainbow =
+            variant == "rainbow"
+            or text:find("rainbow", 1, true) ~= nil
+
+        local hasBig =
+            size == "big"
+            or text:find("big", 1, true) ~= nil
+
+        local hasHuge =
+            size == "huge"
+            or text:find("huge", 1, true) ~= nil
+            or text:find("mega", 1, true) ~= nil
+
+        local hasNormalSize =
+            (
+                size == ""
+                or size == "normal"
+            )
+            and hasBig ~= true
+            and hasHuge ~= true
+
+        local hasNormalVariant =
+            (
+                variant == ""
+                or variant == "normal"
+            )
+            and hasRainbow ~= true
+
+        if trait == "normal" then
+
+            return hasNormalSize == true
+                and hasNormalVariant == true
+        end
+
+        if trait == "big" then
+            return hasBig == true
+        end
+
+        if trait == "huge" then
+            return hasHuge == true
+        end
+
+        if trait == "rainbow" then
+            return hasRainbow == true
+        end
+
+        if trait == "big rainbow" then
+            return hasBig == true
+                and hasRainbow == true
+        end
+
+        if trait == "huge rainbow" then
+            return hasHuge == true
+                and hasRainbow == true
+        end
+
+        return text:find(
+            trait,
+            1,
+            true
+        ) ~= nil
+    end
+
+    local function RowMatchesAlwaysTraits(row)
+
+        if CountSelected(Hud.SelectedTraits) <= 0 then
+            return false
+        end
+
+        for _, pet in ipairs(RowPets(row)) do
+
+            for trait in pairs(Hud.SelectedTraits) do
+
+                if PetMatchesTrait(
+                    pet,
+                    trait
+                ) == true then
+
+                    return true
+                end
+            end
+        end
+
+        return false
+    end
+
+    local function RowMatchesAlwaysFilters(row)
+
+        if CountAllFilters() <= 0 then
+            return true
+        end
+
+        if RowMatchesAlwaysPets(row) == true then
+            return true
+        end
+
+        if RowMatchesAlwaysRarities(row) == true then
+            return true
+        end
+
+        if RowMatchesAlwaysTraits(row) == true then
+            return true
         end
 
         return false
@@ -4603,15 +4881,7 @@ function Library:CreateServerFinderHUD(Info)
                 continue
             end
 
-            if RowMatchesSelectedMap(row, Hud.SelectedPets) ~= true then
-                continue
-            end
-
-            if RowMatchesRarity(row) ~= true then
-                continue
-            end
-
-            if RowMatchesSelectedMap(row, Hud.SelectedTraits) ~= true then
+            if RowMatchesAlwaysFilters(row) ~= true then
                 continue
             end
 
