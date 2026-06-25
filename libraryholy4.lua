@@ -2665,6 +2665,963 @@ function Library:AddDraggableMenu(Name: string)
     return Holder, Container
 end
 
+function Library:CreateServerFinderHUD(Info)
+
+    Info =
+        Info
+        or {}
+
+    local Hud = {
+        Rows = {},
+        FilteredRows = {},
+        SearchText = "",
+        HideFull = true,
+        AutoRefresh = false,
+        SelectedTraits = {},
+        Visible = false,
+        OnRefresh = Info.OnRefresh,
+        OnJoin = Info.OnJoin,
+    }
+
+    local Width =
+        tonumber(Info.Width)
+        or 304
+
+    local Height =
+        tonumber(Info.Height)
+        or 414
+
+    local RowHeight =
+        tonumber(Info.RowHeight)
+        or 52
+
+    local HudFrame = New("Frame", {
+        BackgroundColor3 = "BackgroundColor",
+        Position = Info.Position or UDim2.fromOffset(92, 92),
+        Size = UDim2.fromOffset(Width, Height),
+        Visible = false,
+        ZIndex = 9000,
+        Parent = ScreenGui,
+    })
+
+    table.insert(
+        Library.Corners,
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius),
+            Parent = HudFrame,
+        })
+    )
+
+    table.insert(
+        Library.Scales,
+        New("UIScale", {
+            Parent = HudFrame,
+        })
+    )
+
+    Library:AddOutline(
+        HudFrame
+    )
+
+    local Header = New("TextButton", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 32),
+        Text = "",
+        ZIndex = HudFrame.ZIndex + 1,
+        Parent = HudFrame,
+    })
+
+    local TitleLabel = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(10, 0),
+        Size = UDim2.new(1, -54, 1, 0),
+        Text = tostring(Info.Title or "HOLY Server Finder"),
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTransparency = 0.02,
+        ZIndex = Header.ZIndex + 1,
+        Parent = Header,
+    })
+
+    local CloseButton = New("TextButton", {
+        BackgroundColor3 = "MainColor",
+        Position = UDim2.new(1, -29, 0, 6),
+        Size = UDim2.fromOffset(20, 20),
+        Text = "×",
+        TextSize = 16,
+        TextTransparency = 0.20,
+        ZIndex = Header.ZIndex + 2,
+        Parent = Header,
+    })
+
+    table.insert(
+        Library.Corners,
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            Parent = CloseButton,
+        })
+    )
+
+    New("UIStroke", {
+        Color = "OutlineColor",
+        Transparency = 0.25,
+        Parent = CloseButton,
+    })
+
+    Library:MakeLine(
+        HudFrame,
+        {
+            Position = UDim2.fromOffset(0, 32),
+            Size = UDim2.new(1, 0, 0, 1),
+            ZIndex = HudFrame.ZIndex + 1,
+        }
+    )
+
+    local CurrentLabel = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(10, 36),
+        Size = UDim2.new(1, -20, 0, 16),
+        Text = "Current server: ---",
+        TextSize = 12,
+        TextTransparency = 0.48,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        ZIndex = HudFrame.ZIndex + 1,
+        Parent = HudFrame,
+    })
+
+    local CountLabel = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(10, 52),
+        Size = UDim2.new(1, -20, 0, 16),
+        Text = "0 server(s)",
+        TextSize = 12,
+        TextTransparency = 0.48,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        ZIndex = HudFrame.ZIndex + 1,
+        Parent = HudFrame,
+    })
+
+    local SearchBox = New("TextBox", {
+        BackgroundColor3 = "MainColor",
+        ClearTextOnFocus = false,
+        PlaceholderText = "Filter pets, blank = all",
+        Position = UDim2.fromOffset(10, 73),
+        Size = UDim2.new(1, -91, 0, 25),
+        Text = "",
+        TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = HudFrame.ZIndex + 1,
+        Parent = HudFrame,
+    })
+
+    New("UIPadding", {
+        PaddingLeft = UDim.new(0, 8),
+        PaddingRight = UDim.new(0, 8),
+        Parent = SearchBox,
+    })
+
+    table.insert(
+        Library.Corners,
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            Parent = SearchBox,
+        })
+    )
+
+    New("UIStroke", {
+        Color = "OutlineColor",
+        Transparency = 0.20,
+        Parent = SearchBox,
+    })
+
+    local RefreshButton = New("TextButton", {
+        BackgroundColor3 = "AccentColor",
+        Position = UDim2.new(1, -72, 0, 73),
+        Size = UDim2.fromOffset(62, 25),
+        Text = "Refresh",
+        TextSize = 12,
+        TextTransparency = 0.05,
+        ZIndex = HudFrame.ZIndex + 1,
+        Parent = HudFrame,
+    })
+
+    table.insert(
+        Library.Corners,
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            Parent = RefreshButton,
+        })
+    )
+
+    local ToggleRow = New("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(10, 104),
+        Size = UDim2.new(1, -20, 0, 23),
+        ZIndex = HudFrame.ZIndex + 1,
+        Parent = HudFrame,
+    })
+
+    local ToggleList = New("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal,
+        HorizontalFlex = Enum.UIFlexAlignment.Fill,
+        Padding = UDim.new(0, 6),
+        Parent = ToggleRow,
+    })
+
+    local function MakeSmallButton(parent, text)
+
+        local button = New("TextButton", {
+            BackgroundColor3 = "MainColor",
+            Size = UDim2.fromScale(1, 1),
+            Text = text,
+            TextSize = 11,
+            TextTransparency = 0.42,
+            ZIndex = HudFrame.ZIndex + 1,
+            Parent = parent,
+        })
+
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = button,
+            })
+        )
+
+        New("UIStroke", {
+            Color = "OutlineColor",
+            Transparency = 0.35,
+            Parent = button,
+        })
+
+        return button
+    end
+
+    local AutoRefreshButton =
+        MakeSmallButton(
+            ToggleRow,
+            "Auto-refresh: OFF"
+        )
+
+    local HideFullButton =
+        MakeSmallButton(
+            ToggleRow,
+            "Hide full: ON"
+        )
+
+    local TraitRow = New("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(10, 132),
+        Size = UDim2.new(1, -20, 0, 23),
+        ZIndex = HudFrame.ZIndex + 1,
+        Parent = HudFrame,
+    })
+
+    local TraitList = New("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal,
+        HorizontalFlex = Enum.UIFlexAlignment.Fill,
+        Padding = UDim.new(0, 6),
+        Parent = TraitRow,
+    })
+
+    local TraitButtons =
+        {}
+
+    local function SetButtonSelected(button, selected)
+
+        button.BackgroundColor3 =
+            selected and Library.Scheme.AccentColor
+            or Library.Scheme.MainColor
+
+        button.TextTransparency =
+            selected and 0.06
+            or 0.46
+    end
+
+    local function MakeTrait(name)
+
+        local button =
+            MakeSmallButton(
+                TraitRow,
+                name
+            )
+
+        TraitButtons[name] =
+            button
+
+        SetButtonSelected(
+            button,
+            false
+        )
+
+        button.MouseButton1Click:Connect(function()
+
+            Hud.SelectedTraits[name] =
+                Hud.SelectedTraits[name] ~= true
+                and true
+                or nil
+
+            SetButtonSelected(
+                button,
+                Hud.SelectedTraits[name] == true
+            )
+
+            Hud:Refresh()
+        end)
+    end
+
+    MakeTrait("Big")
+    MakeTrait("Huge")
+    MakeTrait("Rainbow")
+
+    local RarityRow = New("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(10, 160),
+        Size = UDim2.new(1, -20, 0, 23),
+        ZIndex = HudFrame.ZIndex + 1,
+        Parent = HudFrame,
+    })
+
+    local RarityList = New("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal,
+        HorizontalFlex = Enum.UIFlexAlignment.Fill,
+        Padding = UDim.new(0, 6),
+        Parent = RarityRow,
+    })
+
+    local RarityButtons =
+        {}
+
+    local function MakeRarity(name)
+
+        local button =
+            MakeSmallButton(
+                RarityRow,
+                name
+            )
+
+        RarityButtons[name] =
+            button
+
+        SetButtonSelected(
+            button,
+            false
+        )
+
+        button.MouseButton1Click:Connect(function()
+
+            Hud.SelectedTraits[name] =
+                Hud.SelectedTraits[name] ~= true
+                and true
+                or nil
+
+            SetButtonSelected(
+                button,
+                Hud.SelectedTraits[name] == true
+            )
+
+            Hud:Refresh()
+        end)
+    end
+
+    MakeRarity("Legendary")
+    MakeRarity("Mythic")
+    MakeRarity("Super")
+    MakeRarity("Secret")
+
+    local RowsFrame = New("ScrollingFrame", {
+        Active = true,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        CanvasSize = UDim2.fromOffset(0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        BottomImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
+        MidImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
+        TopImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
+        ScrollBarImageColor3 = "OutlineColor",
+        ScrollBarThickness = 3,
+        Position = UDim2.fromOffset(10, 190),
+        Size = UDim2.new(1, -20, 1, -200),
+        ZIndex = HudFrame.ZIndex + 1,
+        Parent = HudFrame,
+    })
+
+    local RowsList = New("UIListLayout", {
+        Padding = UDim.new(0, 7),
+        Parent = RowsFrame,
+    })
+
+    local EmptyLabel = New("TextLabel", {
+        BackgroundColor3 = "MainColor",
+        BackgroundTransparency = 0.30,
+        Size = UDim2.new(1, -4, 0, 42),
+        Text = "No fresh servers found.",
+        TextSize = 12,
+        TextTransparency = 0.45,
+        ZIndex = HudFrame.ZIndex + 2,
+        Parent = RowsFrame,
+    })
+
+    table.insert(
+        Library.Corners,
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            Parent = EmptyLabel,
+        })
+    )
+
+    New("UIStroke", {
+        Color = "OutlineColor",
+        Transparency = 0.40,
+        Parent = EmptyLabel,
+    })
+
+    local RowObjects =
+        {}
+
+    local function Clean(value)
+
+        return tostring(value or "")
+            :gsub("^%s+", "")
+            :gsub("%s+$", "")
+    end
+
+    local function ShortJob(value)
+
+        value =
+            Clean(value)
+
+        if #value <= 12 then
+            return value
+        end
+
+        return value:sub(1, 8)
+            .. "..."
+    end
+
+    local function RowName(row)
+
+        local pet =
+            Clean(
+                row.DisplayName
+                or row.Name
+                or row.Pet
+                or row.petName
+            )
+
+        if pet == "" then
+            pet =
+                "Unknown Pet"
+        end
+
+        local rarity =
+            Clean(
+                row.Rarity
+                or row.rarity
+            )
+
+        if rarity ~= "" then
+
+            return pet
+                .. " ("
+                .. rarity
+                .. ")"
+        end
+
+        return pet
+    end
+
+    local function RowMeta(row)
+
+        local playing =
+            tonumber(row.Playing or row.playing or row.Players or row.players)
+            or 0
+
+        local maxPlayers =
+            tonumber(row.MaxPlayers or row.maxPlayers)
+            or 8
+
+        local age =
+            Clean(row.AgeText or row.ageText or row.Age or row.age)
+
+        if age == "" then
+
+            local reportedAt =
+                tonumber(row.ReportedAt or row.reportedAt)
+
+            if reportedAt then
+
+                age =
+                    tostring(
+                        math.max(
+                            0,
+                            os.time() - reportedAt
+                        )
+                    )
+                    .. "s ago"
+
+            else
+
+                age =
+                    "?s ago"
+            end
+        end
+
+        local life =
+            Clean(row.LifeText or row.TimeLeftText or row.timeLeftText)
+
+        if life == "" then
+
+            local timeLeft =
+                tonumber(row.TimeLeft or row.timeLeft)
+
+            if timeLeft then
+
+                local minutes =
+                    math.floor(timeLeft / 60)
+
+                local seconds =
+                    math.floor(timeLeft % 60)
+
+                life =
+                    tostring(minutes)
+                    .. "m "
+                    .. tostring(seconds)
+                    .. "s left"
+            end
+        end
+
+        local meta =
+            tostring(playing)
+            .. "/"
+            .. tostring(maxPlayers)
+            .. " players · "
+            .. age
+
+        if life ~= "" then
+            meta =
+                meta
+                .. " · "
+                .. life
+        end
+
+        return meta
+    end
+
+    local function RowMatchesSearch(row)
+
+        local search =
+            Hud.SearchText:lower()
+
+        if search == "" then
+            return true
+        end
+
+        local haystack =
+            table.concat({
+                tostring(row.DisplayName or ""),
+                tostring(row.Name or ""),
+                tostring(row.Pet or ""),
+                tostring(row.petName or ""),
+                tostring(row.Rarity or ""),
+                tostring(row.rarity or ""),
+                tostring(row.Size or ""),
+                tostring(row.size or ""),
+                tostring(row.Variant or ""),
+                tostring(row.variant or ""),
+                tostring(row.Mutation or ""),
+                tostring(row.mutation or ""),
+            }, " "):lower()
+
+        for part in search:gmatch("[^,%s]+") do
+
+            if haystack:find(
+                part,
+                1,
+                true
+            ) then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    local function RowMatchesTraits(row)
+
+        local hasTrait =
+            false
+
+        for _ in pairs(Hud.SelectedTraits) do
+            hasTrait =
+                true
+
+            break
+        end
+
+        if hasTrait ~= true then
+            return true
+        end
+
+        local haystack =
+            table.concat({
+                tostring(row.DisplayName or ""),
+                tostring(row.Name or ""),
+                tostring(row.Pet or ""),
+                tostring(row.petName or ""),
+                tostring(row.Rarity or ""),
+                tostring(row.rarity or ""),
+                tostring(row.Size or ""),
+                tostring(row.size or ""),
+                tostring(row.Variant or ""),
+                tostring(row.variant or ""),
+                tostring(row.Mutation or ""),
+                tostring(row.mutation or ""),
+            }, " "):lower()
+
+        for trait in pairs(Hud.SelectedTraits) do
+
+            if haystack:find(
+                tostring(trait):lower(),
+                1,
+                true
+            ) then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    local function RowIsFull(row)
+
+        local playing =
+            tonumber(row.Playing or row.playing or row.Players or row.players)
+            or 0
+
+        local maxPlayers =
+            tonumber(row.MaxPlayers or row.maxPlayers)
+            or 8
+
+        return maxPlayers > 0
+            and playing >= maxPlayers
+    end
+
+    local function ClearRows()
+
+        for _, object in ipairs(RowObjects) do
+
+            if object
+            and object.Parent then
+
+                object:Destroy()
+            end
+        end
+
+        table.clear(
+            RowObjects
+        )
+    end
+
+    local function CreateRow(row)
+
+        local full =
+            RowIsFull(row)
+
+        local Holder = New("Frame", {
+            BackgroundColor3 = "MainColor",
+            BackgroundTransparency = full and 0.48 or 0.18,
+            Size = UDim2.new(1, -4, 0, RowHeight),
+            ZIndex = HudFrame.ZIndex + 2,
+            Parent = RowsFrame,
+        })
+
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = Holder,
+            })
+        )
+
+        New("UIStroke", {
+            Color = "OutlineColor",
+            Transparency = full and 0.55 or 0.22,
+            Parent = Holder,
+        })
+
+        local Dot = New("Frame", {
+            BackgroundColor3 = full and "OutlineColor" or "AccentColor",
+            Position = UDim2.fromOffset(8, 8),
+            Size = UDim2.fromOffset(6, 6),
+            ZIndex = Holder.ZIndex + 1,
+            Parent = Holder,
+        })
+
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(1, 0),
+                Parent = Dot,
+            })
+        )
+
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(20, 4),
+            Size = UDim2.new(1, -90, 0, 18),
+            Text = RowName(row),
+            TextSize = 12,
+            TextTransparency = full and 0.48 or 0.02,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            ZIndex = Holder.ZIndex + 1,
+            Parent = Holder,
+        })
+
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(20, 25),
+            Size = UDim2.new(1, -90, 0, 18),
+            Text = RowMeta(row),
+            TextSize = 11,
+            TextTransparency = full and 0.62 or 0.42,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            ZIndex = Holder.ZIndex + 1,
+            Parent = Holder,
+        })
+
+        local JoinButton = New("TextButton", {
+            Active = full ~= true,
+            BackgroundColor3 = full and "BackgroundColor" or Color3.fromRGB(39, 142, 68),
+            Position = UDim2.new(1, -65, 0, 9),
+            Size = UDim2.fromOffset(56, 34),
+            Text = full and "Full" or "Join",
+            TextSize = 12,
+            TextTransparency = full and 0.65 or 0.05,
+            ZIndex = Holder.ZIndex + 1,
+            Parent = Holder,
+        })
+
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = JoinButton,
+            })
+        )
+
+        JoinButton.MouseButton1Click:Connect(function()
+
+            if full == true then
+                return
+            end
+
+            Library:SafeCallback(
+                Hud.OnJoin,
+                row,
+                Hud
+            )
+        end)
+
+        table.insert(
+            RowObjects,
+            Holder
+        )
+    end
+
+    function Hud:Refresh()
+
+        ClearRows()
+
+        local filtered =
+            {}
+
+        for _, row in ipairs(Hud.Rows) do
+
+            if Hud.HideFull == true
+            and RowIsFull(row) == true then
+                continue
+            end
+
+            if RowMatchesSearch(row) ~= true then
+                continue
+            end
+
+            if RowMatchesTraits(row) ~= true then
+                continue
+            end
+
+            table.insert(
+                filtered,
+                row
+            )
+        end
+
+        Hud.FilteredRows =
+            filtered
+
+        EmptyLabel.Visible =
+            #filtered <= 0
+
+        for _, row in ipairs(filtered) do
+
+            CreateRow(
+                row
+            )
+        end
+
+        CountLabel.Text =
+            tostring(#filtered)
+            .. "/"
+            .. tostring(#Hud.Rows)
+            .. " server(s)"
+    end
+
+    function Hud:SetRows(rows)
+
+        Hud.Rows =
+            type(rows) == "table"
+            and rows
+            or {}
+
+        Hud:Refresh()
+    end
+
+    function Hud:SetCurrentServer(jobId)
+
+        jobId =
+            Clean(jobId)
+
+        if jobId == "" then
+            jobId =
+                "---"
+        end
+
+        CurrentLabel.Text =
+            "Current server: "
+            .. ShortJob(jobId)
+    end
+
+    function Hud:SetVisible(visible)
+
+        Hud.Visible =
+            visible == true
+
+        HudFrame.Visible =
+            Hud.Visible
+    end
+
+    function Hud:Show()
+
+        Hud:SetVisible(
+            true
+        )
+    end
+
+    function Hud:Hide()
+
+        Hud:SetVisible(
+            false
+        )
+    end
+
+    function Hud:Toggle()
+
+        Hud:SetVisible(
+            Hud.Visible ~= true
+        )
+    end
+
+    function Hud:Destroy()
+
+        HudFrame:Destroy()
+    end
+
+    CloseButton.MouseButton1Click:Connect(function()
+
+        Hud:Hide()
+    end)
+
+    RefreshButton.MouseButton1Click:Connect(function()
+
+        Library:SafeCallback(
+            Hud.OnRefresh,
+            Hud
+        )
+    end)
+
+    AutoRefreshButton.MouseButton1Click:Connect(function()
+
+        Hud.AutoRefresh =
+            Hud.AutoRefresh ~= true
+
+        AutoRefreshButton.Text =
+            Hud.AutoRefresh
+            and "Auto-refresh: ON"
+            or "Auto-refresh: OFF"
+
+        SetButtonSelected(
+            AutoRefreshButton,
+            Hud.AutoRefresh
+        )
+    end)
+
+    HideFullButton.MouseButton1Click:Connect(function()
+
+        Hud.HideFull =
+            Hud.HideFull ~= true
+
+        HideFullButton.Text =
+            Hud.HideFull
+            and "Hide full: ON"
+            or "Hide full: OFF"
+
+        SetButtonSelected(
+            HideFullButton,
+            Hud.HideFull
+        )
+
+        Hud:Refresh()
+    end)
+
+    SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+
+        Hud.SearchText =
+            Clean(
+                SearchBox.Text
+            )
+
+        Hud:Refresh()
+    end)
+
+    SetButtonSelected(
+        AutoRefreshButton,
+        false
+    )
+
+    SetButtonSelected(
+        HideFullButton,
+        true
+    )
+
+    Hud:SetCurrentServer(
+        Info.CurrentServer
+        or ""
+    )
+
+    Library:MakeDraggable(
+        HudFrame,
+        Header,
+        true
+    )
+
+    return Hud
+end
+
 --// Watermark - Deprecated \\--
 do
     local WatermarkLabel = Library:AddDraggableLabel("")
