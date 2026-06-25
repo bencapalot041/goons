@@ -3615,6 +3615,9 @@ function Library:CreateServerFinderHUD(Info)
     local FilterSections =
         {}
 
+    local LastFilterOptionsSignature =
+        ""
+
     local CurrentServerText =
         "---"
 
@@ -3693,6 +3696,40 @@ function Library:CreateServerFinderHUD(Info)
         return NormalizeList(
             baseList
         )
+    end
+
+    local function ListSignature(list)
+
+        local values =
+            NormalizeList(
+                list
+            )
+
+        return table.concat(
+            values,
+            "\31"
+        )
+    end
+
+    local function CurrentFilterOptionsSignature()
+
+        return table.concat({
+            ListSignature(
+                Hud.FilterPets
+            ),
+
+            ListSignature(
+                Hud.FilterRarities
+            ),
+
+            ListSignature(
+                Hud.FilterSizes
+            ),
+
+            ListSignature(
+                Hud.FilterVariants
+            ),
+        }, "\30")
     end
 
     local function DestroyFilterSections()
@@ -4201,83 +4238,58 @@ function Library:CreateServerFinderHUD(Info)
         return false
     end
 
-    local function RowMatchesAlwaysPets(row)
+    local function PetText(pet)
+
+        return table.concat({
+            tostring(pet.DisplayName or ""),
+            tostring(pet.Name or ""),
+            tostring(pet.Pet or ""),
+            tostring(pet.PetName or ""),
+            tostring(pet.BestPet or ""),
+            tostring(pet.BestDisplayName or ""),
+        }, " ")
+    end
+
+    local function PetMatchesSelectedPet(pet)
 
         if CountSelected(Hud.SelectedPets) <= 0 then
             return false
         end
 
-        for _, pet in ipairs(RowPets(row)) do
-
-            local text =
-                table.concat({
-                    tostring(pet.DisplayName or ""),
-                    tostring(pet.Name or ""),
-                    tostring(pet.Pet or ""),
-                    tostring(pet.PetName or ""),
-                    tostring(pet.BestPet or ""),
-                    tostring(pet.BestDisplayName or ""),
-                }, " ")
-
-            if TextMatchesSelection(
-                text,
-                Hud.SelectedPets
-            ) == true then
-
-                return true
-            end
-        end
-
         return TextMatchesSelection(
-            RowHaystack(row),
+            PetText(
+                pet
+            ),
             Hud.SelectedPets
         )
     end
 
-    local function RowMatchesAlwaysRarities(row)
+    local function PetMatchesSelectedRarity(pet)
 
         if CountSelected(Hud.SelectedRarities) <= 0 then
             return false
         end
 
-        for _, pet in ipairs(RowPets(row)) do
-
-            local rarity =
-                Clean(
-                    pet.Rarity
-                    or pet.rarity
-                )
-                :lower()
-
-            for value in pairs(Hud.SelectedRarities) do
-
-                if rarity ~= ""
-                and rarity == Clean(value):lower() then
-
-                    return true
-                end
-            end
-        end
-
-        local rowRarity =
-            RowRarity(
-                row
+        local rarity =
+            Clean(
+                pet.Rarity
+                or pet.rarity
             )
             :lower()
 
+        if rarity == "" then
+            return false
+        end
+
         for value in pairs(Hud.SelectedRarities) do
 
-            if rowRarity ~= ""
-            and rowRarity == Clean(value):lower() then
+            if rarity == Clean(value):lower() then
 
                 return true
             end
         end
 
-        return TextMatchesSelection(
-            RowHaystack(row),
-            Hud.SelectedRarities
-        )
+        return false
     end
 
     local function NormalizeFinderSize(value)
@@ -4432,46 +4444,60 @@ function Library:CreateServerFinderHUD(Info)
         return false
     end
 
-    local function RowMatchesAlwaysSizes(row)
+    local function PetMatchesSelectedSize(pet, allowNormal)
 
         if CountSelected(Hud.SelectedSizes) <= 0 then
-            return false
+            return true
         end
 
-        for _, pet in ipairs(RowPets(row)) do
+        for size in pairs(Hud.SelectedSizes) do
 
-            for size in pairs(Hud.SelectedSizes) do
-
-                if PetMatchesSize(
-                    pet,
+            local normalized =
+                NormalizeFinderSize(
                     size
-                ) == true then
+                )
 
-                    return true
-                end
+            if normalized == "normal"
+            and allowNormal ~= true then
+                continue
+            end
+
+            if PetMatchesSize(
+                pet,
+                size
+            ) == true then
+
+                return true
             end
         end
 
         return false
     end
 
-    local function RowMatchesAlwaysVariants(row)
+    local function PetMatchesSelectedVariant(pet, allowRegular)
 
         if CountSelected(Hud.SelectedVariants) <= 0 then
-            return false
+            return true
         end
 
-        for _, pet in ipairs(RowPets(row)) do
+        for variant in pairs(Hud.SelectedVariants) do
 
-            for variant in pairs(Hud.SelectedVariants) do
-
-                if PetMatchesVariant(
-                    pet,
+            local normalized =
+                NormalizeFinderVariant(
                     variant
-                ) == true then
+                )
 
-                    return true
-                end
+            if normalized == "regular"
+            and allowRegular ~= true then
+                continue
+            end
+
+            if PetMatchesVariant(
+                pet,
+                variant
+            ) == true then
+
+                return true
             end
         end
 
@@ -4484,26 +4510,78 @@ function Library:CreateServerFinderHUD(Info)
             return true
         end
 
-        if RowMatchesAlwaysPets(row) == true then
-            return true
-        end
+        local hasAnchors =
+            CountSelected(
+                Hud.SelectedPets
+            )
+            + CountSelected(
+                Hud.SelectedRarities
+            )
+            > 0
 
-        if RowMatchesAlwaysRarities(row) == true then
-            return true
-        end
+        local hasSizeFilters =
+            CountSelected(
+                Hud.SelectedSizes
+            )
+            > 0
 
-        if RowMatchesAlwaysSizes(row) == true then
-            return true
-        end
+        local hasVariantFilters =
+            CountSelected(
+                Hud.SelectedVariants
+            )
+            > 0
 
-        if RowMatchesAlwaysVariants(row) == true then
-            return true
+        for _, pet in ipairs(RowPets(row)) do
+
+            if hasAnchors == true then
+
+                local anchorMatched =
+                    PetMatchesSelectedPet(
+                        pet
+                    )
+                    or PetMatchesSelectedRarity(
+                        pet
+                    )
+
+                if anchorMatched == true
+                and PetMatchesSelectedSize(
+                    pet,
+                    true
+                ) == true
+                and PetMatchesSelectedVariant(
+                    pet,
+                    true
+                ) == true then
+
+                    return true
+                end
+
+            else
+
+                local broadSizeMatched =
+                    hasSizeFilters == true
+                    and PetMatchesSelectedSize(
+                        pet,
+                        false
+                    ) == true
+
+                local broadVariantMatched =
+                    hasVariantFilters == true
+                    and PetMatchesSelectedVariant(
+                        pet,
+                        false
+                    ) == true
+
+                if broadSizeMatched == true
+                or broadVariantMatched == true then
+
+                    return true
+                end
+            end
         end
 
         return false
     end
-
-    -- Removed duplicate legacy RowMatchesAlwaysFilters block.
 
     local function RowIsFull(row)
 
@@ -5077,7 +5155,16 @@ function Library:CreateServerFinderHUD(Info)
                 )
         end
 
-        RebuildFilterPopup()
+        local signature =
+            CurrentFilterOptionsSignature()
+
+        if signature ~= LastFilterOptionsSignature then
+
+            LastFilterOptionsSignature =
+                signature
+
+            RebuildFilterPopup()
+        end
 
         Hud:Refresh()
     end
@@ -5088,8 +5175,6 @@ function Library:CreateServerFinderHUD(Info)
             type(rows) == "table"
             and rows
             or {}
-
-        RebuildFilterPopup()
 
         Hud:Refresh()
     end
@@ -5239,9 +5324,12 @@ function Library:CreateServerFinderHUD(Info)
             Hud.AutoRefresh
         )
 
-        RebuildFilterPopup()
+    LastFilterOptionsSignature =
+        CurrentFilterOptionsSignature()
 
-        Hud:Refresh()
+    RebuildFilterPopup()
+
+    Hud:Refresh()
 
         Hud:SetMinimized(
             settings.Minimized == true
