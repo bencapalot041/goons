@@ -2699,6 +2699,7 @@ function Library:CreateServerFinderHUD(Info)
 
         OnRefresh = Info.OnRefresh,
         OnJoin = Info.OnJoin,
+        OnVisibleChanged = Info.OnVisibleChanged,
     }
 
     local Width =
@@ -4650,8 +4651,14 @@ function Library:CreateServerFinderHUD(Info)
 
     function Hud:SetVisible(visible)
 
-        Hud.Visible =
+        local newVisible =
             visible == true
+
+        local changed =
+            Hud.Visible ~= newVisible
+
+        Hud.Visible =
+            newVisible
 
         HudFrame.Visible =
             Hud.Visible
@@ -4659,6 +4666,15 @@ function Library:CreateServerFinderHUD(Info)
         if Hud.Visible ~= true then
 
             Hud:CloseFilters()
+        end
+
+        if changed == true then
+
+            Library:SafeCallback(
+                Hud.OnVisibleChanged,
+                Hud.Visible,
+                Hud
+            )
         end
     end
 
