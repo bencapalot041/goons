@@ -2678,6 +2678,12 @@ function Library:CreateServerFinderHUD(Info)
 
         HideFull = Info.HideFull ~= false,
         AutoRefresh = Info.AutoRefresh == true,
+        RefreshDelay = math.clamp(
+            tonumber(Info.RefreshDelay)
+            or 5,
+            1,
+            60
+        ),
 
         SelectedPets = {},
         SelectedRarities = {},
@@ -3687,6 +3693,118 @@ function Library:CreateServerFinderHUD(Info)
             Hud:Refresh()
         end)
 
+		        local DelayRow = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 25),
+            ZIndex = Rules.ZIndex + 1,
+            Parent = Rules,
+        })
+
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalFlex = Enum.UIFlexAlignment.Fill,
+            Padding = UDim.new(0, 7),
+            Parent = DelayRow,
+        })
+
+        local DelayLabel = New("TextLabel", {
+            BackgroundColor3 = "MainColor",
+            BackgroundTransparency = 0.36,
+            Size = UDim2.fromScale(1, 1),
+            Text = "Refresh delay",
+            TextSize = 11,
+            TextTransparency = 0.46,
+            ZIndex = DelayRow.ZIndex + 1,
+            Parent = DelayRow,
+        })
+
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = DelayLabel,
+            })
+        )
+
+        New("UIStroke", {
+            Color = "OutlineColor",
+            Transparency = 0.42,
+            Parent = DelayLabel,
+        })
+
+        local RefreshDelayInput = New("TextBox", {
+            BackgroundColor3 = "MainColor",
+            BackgroundTransparency = 0.24,
+            ClearTextOnFocus = false,
+            Size = UDim2.fromScale(1, 1),
+            Text = tostring(
+                math.floor(
+                    tonumber(Hud.RefreshDelay)
+                    or 5
+                )
+            ),
+            PlaceholderText = "5",
+            TextSize = 11,
+            TextTransparency = 0.08,
+            ZIndex = DelayRow.ZIndex + 1,
+            Parent = DelayRow,
+        })
+
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = RefreshDelayInput,
+            })
+        )
+
+        New("UIStroke", {
+            Color = "AccentColor",
+            Transparency = 0.42,
+            Parent = RefreshDelayInput,
+        })
+
+        local function ApplyRefreshDelayInput()
+
+            local raw =
+                Clean(
+                    RefreshDelayInput.Text
+                )
+                :gsub("[sS]", "")
+
+            local value =
+                math.clamp(
+                    tonumber(raw)
+                    or tonumber(Hud.RefreshDelay)
+                    or 5,
+                    1,
+                    60
+                )
+
+            Hud.RefreshDelay =
+                value
+
+            if math.abs(value - math.floor(value)) < 0.001 then
+
+                RefreshDelayInput.Text =
+                    tostring(
+                        math.floor(value)
+                    )
+
+            else
+
+                RefreshDelayInput.Text =
+                    tostring(
+                        math.floor(value * 10 + 0.5) / 10
+                    )
+            end
+        end
+
+        RefreshDelayInput.FocusLost:Connect(function()
+
+            ApplyRefreshDelayInput()
+        end)
+
         ClearFiltersButton.MouseButton1Click:Connect(function()
 
             table.clear(
@@ -3814,16 +3932,69 @@ function Library:CreateServerFinderHUD(Info)
             and playing >= maxPlayers
     end
 
-    local function UpdateInfoLabel()
+    local function RowIsCurrentServer(row)
 
-        InfoLabel.Text =
-            "Current: "
-            .. tostring(CurrentServerText)
-            .. " · "
-            .. tostring(#Hud.FilteredRows)
-            .. "/"
-            .. tostring(#Hud.Rows)
-            .. " servers"
+        if type(row) ~= "table" then
+            return false
+        end
+
+        if row.IsCurrentServer == true then
+            return true
+        end
+
+        local jobId =
+            Clean(
+                row.JobId
+                or row.jobId
+                or row.ServerId
+                or row.id
+            )
+
+        return jobId ~= ""
+            and jobId == tostring(game.JobId)
+    end
+
+    local function RowIsExpired(row)
+
+        if type(row) ~= "table" then
+            return false
+        end
+
+        local now =
+            os.time()
+
+        local expiresAt =
+            tonumber(row.ExpiresAt or row.expiresAt)
+            or 0
+
+        if expiresAt > 0 then
+
+            return expiresAt <= now
+        end
+
+        local timeLeft =
+            tonumber(row.TimeLeft or row.timeLeft)
+
+        if not timeLeft then
+            return false
+        end
+
+        local reportedAt =
+            tonumber(row.ReportedAt or row.reportedAt)
+            or 0
+
+        if reportedAt > 0 then
+
+            return (
+                timeLeft
+                - math.max(
+                    0,
+                    now - reportedAt
+                )
+            ) <= 0
+        end
+
+        return timeLeft <= 0
     end
 
     local function RowName(row)
@@ -3856,6 +4027,9 @@ function Library:CreateServerFinderHUD(Info)
 
     local function RowMeta(row)
 
+        local now =
+            os.time()
+
         local playing =
             tonumber(row.Playing or row.playing or row.Players or row.players)
             or 0
@@ -3864,54 +4038,99 @@ function Library:CreateServerFinderHUD(Info)
             tonumber(row.MaxPlayers or row.maxPlayers)
             or 8
 
+        local reportedAt =
+            tonumber(row.ReportedAt or row.reportedAt)
+            or 0
+
         local age =
-            Clean(row.AgeText or row.ageText or row.Age or row.age)
+            ""
 
-        if age == "" then
+        if reportedAt > 0 then
 
-            local reportedAt =
-                tonumber(row.ReportedAt or row.reportedAt)
-
-            if reportedAt then
-
-                age =
-                    tostring(
-                        math.max(
-                            0,
-                            os.time() - reportedAt
-                        )
+            age =
+                tostring(
+                    math.max(
+                        0,
+                        now - reportedAt
                     )
-                    .. "s ago"
+                )
+                .. "s ago"
 
-            else
+        else
 
+            age =
+                Clean(row.AgeText or row.ageText or row.Age or row.age)
+
+            if age == "" then
                 age =
                     "?s ago"
             end
         end
 
-        local life =
-            Clean(row.LifeText or row.TimeLeftText or row.timeLeftText)
+        local timeLeft =
+            nil
 
-        if life == "" then
+        local expiresAt =
+            tonumber(row.ExpiresAt or row.expiresAt)
+            or 0
 
-            local timeLeft =
+        if expiresAt > 0 then
+
+            timeLeft =
+                expiresAt
+                - now
+
+        else
+
+            local rawTimeLeft =
                 tonumber(row.TimeLeft or row.timeLeft)
 
-            if timeLeft then
+            if rawTimeLeft then
 
-                local minutes =
-                    math.floor(timeLeft / 60)
+                if reportedAt > 0 then
 
-                local seconds =
-                    math.floor(timeLeft % 60)
+                    timeLeft =
+                        rawTimeLeft
+                        - math.max(
+                            0,
+                            now - reportedAt
+                        )
 
-                life =
-                    tostring(minutes)
-                    .. "m "
-                    .. tostring(seconds)
-                    .. "s left"
+                else
+
+                    timeLeft =
+                        rawTimeLeft
+                end
             end
+        end
+
+        local life =
+            ""
+
+        if timeLeft ~= nil then
+
+            timeLeft =
+                math.max(
+                    0,
+                    math.floor(timeLeft)
+                )
+
+            local minutes =
+                math.floor(timeLeft / 60)
+
+            local seconds =
+                math.floor(timeLeft % 60)
+
+            life =
+                tostring(minutes)
+                .. "m "
+                .. tostring(seconds)
+                .. "s left"
+
+        else
+
+            life =
+                Clean(row.LifeText or row.TimeLeftText or row.timeLeftText)
         end
 
         local meta =
@@ -3936,10 +4155,18 @@ function Library:CreateServerFinderHUD(Info)
 
         for _, object in ipairs(RowObjects) do
 
-            if object
-            and object.Parent then
+            local holder =
+                object
 
-                object:Destroy()
+            if type(object) == "table" then
+                holder =
+                    object.Holder
+            end
+
+            if holder
+            and holder.Parent then
+
+                holder:Destroy()
             end
         end
 
@@ -3951,9 +4178,14 @@ function Library:CreateServerFinderHUD(Info)
     local function CreateRow(row)
 
         local full =
-            RowIsFull(
-                row
-            )
+            RowIsFull(row)
+
+        local current =
+            RowIsCurrentServer(row)
+
+        local disabled =
+            full == true
+            or current == true
 
         local Holder = New("Frame", {
             BackgroundColor3 = "MainColor",
@@ -3979,7 +4211,7 @@ function Library:CreateServerFinderHUD(Info)
 
         local Dot = New("Frame", {
             BackgroundColor3 = full and "OutlineColor" or "AccentColor",
-            BackgroundTransparency = full and 0.45 or 0,
+            BackgroundTransparency = disabled and 0.45 or 0,
             Position = UDim2.fromOffset(8, 8),
             Size = UDim2.fromOffset(6, 6),
             ZIndex = Holder.ZIndex + 1,
@@ -3994,7 +4226,7 @@ function Library:CreateServerFinderHUD(Info)
             })
         )
 
-        New("TextLabel", {
+        local NameLabel = New("TextLabel", {
             BackgroundTransparency = 1,
             Position = UDim2.fromOffset(20, 4),
             Size = UDim2.new(1, -90, 0, 18),
@@ -4007,7 +4239,7 @@ function Library:CreateServerFinderHUD(Info)
             Parent = Holder,
         })
 
-        New("TextLabel", {
+        local MetaLabel = New("TextLabel", {
             BackgroundTransparency = 1,
             Position = UDim2.fromOffset(20, 25),
             Size = UDim2.new(1, -90, 0, 18),
@@ -4021,14 +4253,14 @@ function Library:CreateServerFinderHUD(Info)
         })
 
         local JoinButton = New("TextButton", {
-            Active = full ~= true,
-            BackgroundColor3 = full and "BackgroundColor" or Color3.fromRGB(39, 142, 68),
-            BackgroundTransparency = full and 0.26 or 0.02,
+            Active = disabled ~= true,
+            BackgroundColor3 = disabled and "BackgroundColor" or Color3.fromRGB(39, 142, 68),
+            BackgroundTransparency = disabled and 0.26 or 0.02,
             Position = UDim2.new(1, -65, 0, 9),
             Size = UDim2.fromOffset(56, 34),
-            Text = full and "Full" or "Join",
+            Text = current and "Current" or full and "Full" or "Join",
             TextSize = 12,
-            TextTransparency = full and 0.65 or 0.05,
+            TextTransparency = disabled and 0.62 or 0.05,
             ZIndex = Holder.ZIndex + 1,
             Parent = Holder,
         })
@@ -4043,7 +4275,9 @@ function Library:CreateServerFinderHUD(Info)
 
         JoinButton.MouseButton1Click:Connect(function()
 
-            if full == true then
+            if RowIsFull(row) == true
+            or RowIsCurrentServer(row) == true
+            or RowIsExpired(row) == true then
                 return
             end
 
@@ -4056,10 +4290,106 @@ function Library:CreateServerFinderHUD(Info)
 
         table.insert(
             RowObjects,
-            Holder
+            {
+                Holder =
+                    Holder,
+
+                Row =
+                    row,
+
+                NameLabel =
+                    NameLabel,
+
+                MetaLabel =
+                    MetaLabel,
+
+                JoinButton =
+                    JoinButton,
+            }
         )
     end
 
+    local function UpdateVisibleRowObjects()
+
+        local needsRefresh =
+            false
+
+        for _, object in ipairs(RowObjects) do
+
+            if type(object) == "table"
+            and type(object.Row) == "table" then
+
+                local row =
+                    object.Row
+
+                if RowIsExpired(row) == true then
+
+                    needsRefresh =
+                        true
+
+                    if object.Holder then
+                        object.Holder.Visible =
+                            false
+                    end
+
+                else
+
+                    if object.MetaLabel then
+
+                        object.MetaLabel.Text =
+                            RowMeta(
+                                row
+                            )
+                    end
+
+                    if object.JoinButton then
+
+                        local full =
+                            RowIsFull(
+                                row
+                            )
+
+                        local current =
+                            RowIsCurrentServer(
+                                row
+                            )
+
+                        local disabled =
+                            full == true
+                            or current == true
+
+                        object.JoinButton.Active =
+                            disabled ~= true
+
+                        object.JoinButton.Text =
+                            current and "Current"
+                            or full and "Full"
+                            or "Join"
+
+                        object.JoinButton.BackgroundColor3 =
+                            disabled and Library.Scheme.BackgroundColor
+                            or Color3.fromRGB(39, 142, 68)
+
+                        object.JoinButton.TextTransparency =
+                            disabled and 0.62
+                            or 0.05
+                    end
+                end
+            end
+        end
+
+        if needsRefresh == true then
+
+            task.defer(function()
+
+                if HudFrame.Parent ~= nil then
+
+                    Hud:Refresh()
+                end
+            end)
+        end
+    end
+	
     function Hud:Refresh()
 
         ClearRows()
@@ -4068,6 +4398,10 @@ function Library:CreateServerFinderHUD(Info)
             {}
 
         for _, row in ipairs(Hud.Rows) do
+
+            if RowIsExpired(row) == true then
+                continue
+            end
 
             if Hud.HideFull == true
             and RowIsFull(row) == true then
@@ -4122,6 +4456,7 @@ function Library:CreateServerFinderHUD(Info)
 
         UpdateInfoLabel()
         UpdateFilterButtonText()
+        UpdateVisibleRowObjects()
     end
 
     function Hud:SetFilterOptions(options)
@@ -4432,20 +4767,37 @@ function Library:CreateServerFinderHUD(Info)
 
     task.spawn(function()
 
+        local nextRefreshAt =
+            0
+
         while HudFrame.Parent ~= nil do
 
-            if Hud.Visible == true
-            and Hud.AutoRefresh == true
-            and type(Hud.OnRefresh) == "function" then
+            if Hud.Visible == true then
 
-                Library:SafeCallback(
-                    Hud.OnRefresh,
-                    Hud
-                )
+                UpdateVisibleRowObjects()
+
+                if Hud.AutoRefresh == true
+                and type(Hud.OnRefresh) == "function"
+                and os.clock() >= nextRefreshAt then
+
+                    nextRefreshAt =
+                        os.clock()
+                        + math.clamp(
+                            tonumber(Hud.RefreshDelay)
+                            or 5,
+                            1,
+                            60
+                        )
+
+                    Library:SafeCallback(
+                        Hud.OnRefresh,
+                        Hud
+                    )
+                end
             end
 
             task.wait(
-                5
+                1
             )
         end
     end)
