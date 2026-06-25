@@ -3842,20 +3842,6 @@ function Library:CreateServerFinderHUD(Info)
         )
 
         MakeSection(
-            "Always Show Pets",
-            BuildCombinedOptions(
-                Hud.FilterPets,
-                function(row)
-
-                    return RowPetName(
-                        row
-                    )
-                end
-            ),
-            Hud.SelectedPets
-        )
-
-        MakeSection(
             "Always Show Rarities",
             BuildCombinedOptions(
                 Hud.FilterRarities,
@@ -3896,7 +3882,6 @@ function Library:CreateServerFinderHUD(Info)
             ),
             Hud.SelectedVariants
         )
-
         local Rules = New("Frame", {
             BackgroundTransparency = 1,
             AutomaticSize = Enum.AutomaticSize.Y,
@@ -4518,26 +4503,7 @@ function Library:CreateServerFinderHUD(Info)
         return false
     end
 
-    local function RowMatchesAlwaysFilters(row)
-
-        if CountAllFilters() <= 0 then
-            return true
-        end
-
-        if RowMatchesAlwaysPets(row) == true then
-            return true
-        end
-
-        if RowMatchesAlwaysRarities(row) == true then
-            return true
-        end
-
-        if RowMatchesAlwaysTraits(row) == true then
-            return true
-        end
-
-        return false
-    end
+    -- Removed duplicate legacy RowMatchesAlwaysFilters block.
 
     local function RowIsFull(row)
 
