@@ -4898,6 +4898,23 @@ function Library:CreateServerFinderHUD(Info)
             return "Gone", false
         end
 
+        local state =
+            Clean(
+                row.JoinState
+                or row.Freshness
+                or row.freshness
+            )
+            :lower()
+
+        if state == "stale"
+        or state == "late"
+        or state == "aging"
+        or state == "fresh" then
+
+            return "Join",
+                true
+        end
+
         local timeLeft =
             RowTimeLeft(
                 row
@@ -4908,9 +4925,11 @@ function Library:CreateServerFinderHUD(Info)
             or 15
 
         if timeLeft ~= nil
+        and timeLeft > 0
         and timeLeft < minLife then
 
-            return "Late", false
+            return "Join",
+                true
         end
 
         local reportedAt =
@@ -4924,7 +4943,8 @@ function Library:CreateServerFinderHUD(Info)
         if reportedAt > 0
         and RowReportAge(row) > maxManualAge then
 
-            return "Stale", false
+            return "Join",
+                true
         end
 
         if row.JoinEnabled == false
@@ -5389,6 +5409,125 @@ function Library:CreateServerFinderHUD(Info)
         )
     end
 
+    local function RowVisualRiskState(row)
+
+        if type(row) ~= "table" then
+            return "stale"
+        end
+
+        if RowIsCurrentServer(row) == true then
+            return "current"
+        end
+
+        if RowIsFull(row) == true then
+            return "full"
+        end
+
+        if RowIsExpired(row) == true then
+            return "gone"
+        end
+
+        local explicit =
+            Clean(
+                row.JoinState
+                or row.Freshness
+                or row.freshness
+            )
+            :lower()
+
+        if explicit == "fresh"
+        or explicit == "aging"
+        or explicit == "stale"
+        or explicit == "late" then
+
+            return explicit
+        end
+
+        local timeLeft =
+            RowTimeLeft(
+                row
+            )
+
+        local minLife =
+            tonumber(row.ManualMinLife or row.manualMinLife)
+            or 15
+
+        if timeLeft ~= nil
+        and timeLeft > 0
+        and timeLeft < minLife then
+
+            return "late"
+        end
+
+        local reportedAt =
+            tonumber(row.ReportedAt or row.reportedAt)
+            or 0
+
+        local maxManualAge =
+            tonumber(row.ManualJoinMaxAge or row.manualJoinMaxAge)
+            or 20
+
+        if reportedAt > 0
+        and RowReportAge(row) > maxManualAge then
+
+            return "stale"
+        end
+
+        local maxAutoAge =
+            tonumber(row.AutoJoinMaxAge or row.autoJoinMaxAge)
+            or 12
+
+        if RowReportAge(row) > maxAutoAge then
+            return "aging"
+        end
+
+        return "fresh"
+    end
+
+    local function RowJoinButtonColor(row)
+
+        local state =
+            RowVisualRiskState(
+                row
+            )
+
+        if state == "late" then
+            return Color3.fromRGB(185, 28, 28)
+        end
+
+        if state == "stale" then
+            return Color3.fromRGB(234, 88, 12)
+        end
+
+        if state == "aging" then
+            return Color3.fromRGB(202, 138, 4)
+        end
+
+        return Color3.fromRGB(39, 142, 68)
+    end
+
+    local function RowJoinStrokeColor(row)
+
+        local state =
+            RowVisualRiskState(
+                row
+            )
+
+        if state == "late" then
+            return Color3.fromRGB(248, 113, 113)
+        end
+
+        if state == "stale" then
+            return Color3.fromRGB(251, 146, 60)
+        end
+
+        if state == "aging" then
+            return Color3.fromRGB(250, 204, 21)
+        end
+
+        return Color3.fromRGB(74, 222, 128)
+    end
+
     local function RowIsVisualDisabled(row)
 
         local _joinText,
@@ -5406,15 +5545,21 @@ function Library:CreateServerFinderHUD(Info)
             return 0.48
         end
 
-        if RowReportAge(row) > (
-            tonumber(
-                row.AutoJoinMaxAge
-                or row.autoJoinMaxAge
+        local state =
+            RowVisualRiskState(
+                row
             )
-            or 12
-        ) then
 
-            return 0.34
+        if state == "late" then
+            return 0.38
+        end
+
+        if state == "stale" then
+            return 0.35
+        end
+
+        if state == "aging" then
+            return 0.31
         end
 
         return 0.24
@@ -5554,7 +5699,7 @@ function Library:CreateServerFinderHUD(Info)
 
         local JoinButton = New("TextButton", {
             Active = disabled ~= true,
-            BackgroundColor3 = disabled and "BackgroundColor" or Color3.fromRGB(39, 142, 68),
+            BackgroundColor3 = disabled and "BackgroundColor" or RowJoinButtonColor(row),
             BackgroundTransparency = disabled and 0.28 or 0.03,
             Position = UDim2.new(1, -65, 0, 9),
             Size = UDim2.fromOffset(56, 34),
@@ -5574,7 +5719,7 @@ function Library:CreateServerFinderHUD(Info)
         )
 
         local JoinStroke = New("UIStroke", {
-            Color = disabled and "OutlineColor" or Color3.fromRGB(74, 222, 128),
+            Color = disabled and "OutlineColor" or RowJoinStrokeColor(row),
             Transparency = disabled and 0.54 or 0.18,
             Parent = JoinButton,
         })
@@ -5734,7 +5879,7 @@ function Library:CreateServerFinderHUD(Info)
 
                         object.JoinButton.BackgroundColor3 =
                             disabled and Library.Scheme.BackgroundColor
-                            or Color3.fromRGB(39, 142, 68)
+                            or RowJoinButtonColor(row)
 
                         object.JoinButton.BackgroundTransparency =
                             disabled and 0.28
@@ -5749,7 +5894,7 @@ function Library:CreateServerFinderHUD(Info)
 
                         object.JoinStroke.Color =
                             disabled and Library.Scheme.OutlineColor
-                            or Color3.fromRGB(74, 222, 128)
+                            or RowJoinStrokeColor(row)
 
                         object.JoinStroke.Transparency =
                             disabled and 0.54
