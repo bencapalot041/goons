@@ -2678,6 +2678,7 @@ function Library:CreateServerFinderHUD(Info)
 
         HideFull = Info.HideFull ~= false,
         AutoRefresh = Info.AutoRefresh == true,
+        AutoJoinMode = tostring(Info.AutoJoinMode or "Off"),
         RefreshDelay = math.clamp(
             tonumber(Info.RefreshDelay)
             or 5,
@@ -2703,6 +2704,8 @@ function Library:CreateServerFinderHUD(Info)
         OnJoin = Info.OnJoin,
         OnVisibleChanged = Info.OnVisibleChanged,
         OnSettingsChanged = Info.OnSettingsChanged,
+        OnAutoJoinModeChanged = Info.OnAutoJoinModeChanged,
+        OnOpenAutoJoinRules = Info.OnOpenAutoJoinRules,
     }
 
     local Width =
@@ -2762,6 +2765,44 @@ function Library:CreateServerFinderHUD(Info)
         )
 
         return true
+    end
+
+	    local function NormalizeAutoJoinMode(value)
+
+        local text =
+            Clean(
+                value
+            )
+            :lower()
+
+        if text:find("notify", 1, true) then
+            return "Notify"
+        end
+
+        if text:find("join", 1, true)
+        or text:find("best", 1, true) then
+            return "Join Best"
+        end
+
+        return "Off"
+    end
+
+    local function NextAutoJoinMode(value)
+
+        value =
+            NormalizeAutoJoinMode(
+                value
+            )
+
+        if value == "Off" then
+            return "Notify"
+        end
+
+        if value == "Notify" then
+            return "Join Best"
+        end
+
+        return "Off"
     end
 
     local function NormalizeList(list)
@@ -3433,13 +3474,25 @@ function Library:CreateServerFinderHUD(Info)
     local AutoRefreshButton =
         MakeSmallButton(
             QuickRow,
-            Hud.AutoRefresh and "Auto-refresh: ON" or "Auto-refresh: OFF"
+            Hud.AutoRefresh and "Auto: ON" or "Auto: OFF"
+        )
+
+    local AutoJoinButton =
+        MakeSmallButton(
+            QuickRow,
+            "Join: OFF"
         )
 
     local FilterButton =
         MakeSmallButton(
             QuickRow,
             "Filters"
+        )
+
+    local RulesButton =
+        MakeSmallButton(
+            QuickRow,
+            "Rules"
         )
 
     local RowsFrame = New("ScrollingFrame", {
@@ -3710,6 +3763,45 @@ function Library:CreateServerFinderHUD(Info)
             .. " server(s) · "
             .. tostring(#Hud.FilteredRows)
             .. " pet(s)"
+    end
+
+	    local function UpdateAutoJoinButtonText()
+
+        Hud.AutoJoinMode =
+            NormalizeAutoJoinMode(
+                Hud.AutoJoinMode
+            )
+
+        if Hud.AutoJoinMode == "Notify" then
+
+            AutoJoinButton.Text =
+                "Join: NOTIFY"
+
+            SetButtonSelected(
+                AutoJoinButton,
+                true
+            )
+
+        elseif Hud.AutoJoinMode == "Join Best" then
+
+            AutoJoinButton.Text =
+                "Join: BEST"
+
+            SetButtonSelected(
+                AutoJoinButton,
+                true
+            )
+
+        else
+
+            AutoJoinButton.Text =
+                "Join: OFF"
+
+            SetButtonSelected(
+                AutoJoinButton,
+                false
+            )
+        end
     end
 
     local function UpdateFilterButtonText()
@@ -5238,6 +5330,20 @@ function Library:CreateServerFinderHUD(Info)
         Hud:Refresh()
     end
 
+	    function Hud:SetAutoJoinMode(mode)
+
+        Hud.AutoJoinMode =
+            NormalizeAutoJoinMode(
+                mode
+            )
+
+        UpdateAutoJoinButtonText()
+
+        NotifySettingsChanged()
+
+        return Hud.AutoJoinMode
+    end
+
     function Hud:SetRows(rows)
 
         Hud.Rows =
@@ -5290,6 +5396,11 @@ function Library:CreateServerFinderHUD(Info)
 
             HideFull =
                 Hud.HideFull ~= false,
+
+            AutoJoinMode =
+                NormalizeAutoJoinMode(
+                    Hud.AutoJoinMode
+                ),
 
             SelectedPets =
                 SelectionListFromMap(
@@ -5351,6 +5462,13 @@ function Library:CreateServerFinderHUD(Info)
         Hud.HideFull =
             settings.HideFull ~= false
 
+        Hud.AutoJoinMode =
+            NormalizeAutoJoinMode(
+                settings.AutoJoinMode
+                or Hud.AutoJoinMode
+                or "Off"
+            )
+
         Hud.SelectedPets =
             SelectionMapFromList(
                 settings.SelectedPets
@@ -5385,13 +5503,15 @@ function Library:CreateServerFinderHUD(Info)
 
         AutoRefreshButton.Text =
             Hud.AutoRefresh
-            and "Auto-refresh: ON"
-            or "Auto-refresh: OFF"
+            and "Auto: ON"
+            or "Auto: OFF"
 
         SetButtonSelected(
             AutoRefreshButton,
             Hud.AutoRefresh
         )
+
+	        UpdateAutoJoinButtonText()
 
     LastFilterOptionsSignature =
         CurrentFilterOptionsSignature()
@@ -5642,6 +5762,32 @@ function Library:CreateServerFinderHUD(Info)
         )
     end)
 
+	    AutoJoinButton.MouseButton1Click:Connect(function()
+
+        Hud.AutoJoinMode =
+            NextAutoJoinMode(
+                Hud.AutoJoinMode
+            )
+
+        UpdateAutoJoinButtonText()
+
+        NotifySettingsChanged()
+
+        Library:SafeCallback(
+            Hud.OnAutoJoinModeChanged,
+            Hud.AutoJoinMode,
+            Hud
+        )
+    end)
+
+    RulesButton.MouseButton1Click:Connect(function()
+
+        Library:SafeCallback(
+            Hud.OnOpenAutoJoinRules,
+            Hud
+        )
+    end)
+
     AutoRefreshButton.MouseButton1Click:Connect(function()
 
         Hud.AutoRefresh =
@@ -5649,13 +5795,15 @@ function Library:CreateServerFinderHUD(Info)
 
         AutoRefreshButton.Text =
             Hud.AutoRefresh
-            and "Auto-refresh: ON"
-            or "Auto-refresh: OFF"
+            and "Auto: ON"
+            or "Auto: OFF"
 
         SetButtonSelected(
             AutoRefreshButton,
             Hud.AutoRefresh
         )
+
+		    UpdateAutoJoinButtonText()
 
         NotifySettingsChanged()
     end)
