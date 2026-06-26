@@ -4755,10 +4755,30 @@ function Library:CreateServerFinderHUD(Info)
             and jobId == tostring(game.JobId)
     end
 
-    local function RowIsExpired(row)
+    local function RowReportAge(row)
 
         if type(row) ~= "table" then
-            return false
+            return 999999
+        end
+
+        local reportedAt =
+            tonumber(row.ReportedAt or row.reportedAt)
+            or 0
+
+        if reportedAt <= 0 then
+            return 0
+        end
+
+        return math.max(
+            0,
+            os.time() - reportedAt
+        )
+    end
+
+    local function RowTimeLeft(row)
+
+        if type(row) ~= "table" then
+            return nil
         end
 
         local now =
@@ -4769,15 +4789,14 @@ function Library:CreateServerFinderHUD(Info)
             or 0
 
         if expiresAt > 0 then
-
-            return expiresAt <= now
+            return expiresAt - now
         end
 
-        local timeLeft =
+        local rawTimeLeft =
             tonumber(row.TimeLeft or row.timeLeft)
 
-        if not timeLeft then
-            return false
+        if not rawTimeLeft then
+            return nil
         end
 
         local reportedAt =
@@ -4786,16 +4805,147 @@ function Library:CreateServerFinderHUD(Info)
 
         if reportedAt > 0 then
 
-            return (
-                timeLeft
+            return rawTimeLeft
                 - math.max(
                     0,
                     now - reportedAt
                 )
-            ) <= 0
+        end
+
+        return rawTimeLeft
+    end
+
+    local function RowIsExpired(row)
+
+        if type(row) ~= "table" then
+            return false
+        end
+
+        if row.HideFromFinder == true
+        or row.Expired == true then
+            return true
+        end
+
+        local now =
+            os.time()
+
+        local reportedAt =
+            tonumber(row.ReportedAt or row.reportedAt)
+            or 0
+
+        local maxReportAge =
+            tonumber(row.MaxReportAge or row.maxReportAge)
+
+        if reportedAt > 0
+        and maxReportAge
+        and maxReportAge > 0
+        and now - reportedAt > maxReportAge then
+
+            return true
+        end
+
+        local timeLeft =
+            RowTimeLeft(
+                row
+            )
+
+        if timeLeft == nil then
+            return false
         end
 
         return timeLeft <= 0
+    end
+
+    local function RowJoinState(row)
+
+        if type(row) ~= "table" then
+            return "Stale", false
+        end
+
+        if RowIsCurrentServer(row) == true then
+            return "Current", false
+        end
+
+        if RowIsFull(row) == true then
+            return "Full", false
+        end
+
+        if RowIsExpired(row) == true then
+            return "Gone", false
+        end
+
+        local timeLeft =
+            RowTimeLeft(
+                row
+            )
+
+        local minLife =
+            tonumber(row.ManualMinLife or row.manualMinLife)
+            or 15
+
+        if timeLeft ~= nil
+        and timeLeft < minLife then
+
+            return "Late", false
+        end
+
+        local reportedAt =
+            tonumber(row.ReportedAt or row.reportedAt)
+            or 0
+
+        local maxManualAge =
+            tonumber(row.ManualJoinMaxAge or row.manualJoinMaxAge)
+            or 20
+
+        if reportedAt > 0
+        and RowReportAge(row) > maxManualAge then
+
+            return "Stale", false
+        end
+
+        if row.JoinEnabled == false
+        or row.JoinDisabled == true then
+
+            local text =
+                Clean(
+                    row.JoinText
+                    or row.Freshness
+                    or "Stale"
+                )
+
+            if text == "" then
+                text =
+                    "Stale"
+            end
+
+            return text,
+                false
+        end
+
+        local text =
+            Clean(
+                row.JoinText
+                or "Join"
+            )
+
+        if text == "" then
+            text =
+                "Join"
+        end
+
+        return text,
+            true
+    end
+
+    local function RowJoinAllowed(row)
+
+        local _text,
+            enabled =
+            RowJoinState(
+                row
+            )
+
+        return enabled == true
     end
 
     local function RowName(row)
@@ -5009,9 +5159,14 @@ function Library:CreateServerFinderHUD(Info)
         local current =
             RowIsCurrentServer(row)
 
+        local joinText,
+            joinEnabled =
+            RowJoinState(
+                row
+            )
+
         local disabled =
-            full == true
-            or current == true
+            joinEnabled ~= true
 
         local Holder = New("Frame", {
             BackgroundColor3 = "MainColor",
@@ -5084,7 +5239,7 @@ function Library:CreateServerFinderHUD(Info)
             BackgroundTransparency = disabled and 0.26 or 0.02,
             Position = UDim2.new(1, -65, 0, 9),
             Size = UDim2.fromOffset(56, 34),
-            Text = current and "Current" or full and "Full" or "Join",
+            Text = joinText,
             TextSize = 12,
             TextTransparency = disabled and 0.62 or 0.05,
             ZIndex = Holder.ZIndex + 1,
@@ -5101,9 +5256,7 @@ function Library:CreateServerFinderHUD(Info)
 
         JoinButton.MouseButton1Click:Connect(function()
 
-            if RowIsFull(row) == true
-            or RowIsCurrentServer(row) == true
-            or RowIsExpired(row) == true then
+            if RowJoinAllowed(row) ~= true then
                 return
             end
 
@@ -5170,31 +5323,28 @@ function Library:CreateServerFinderHUD(Info)
 
                     if object.JoinButton then
 
-                        local full =
-                            RowIsFull(
-                                row
-                            )
-
-                        local current =
-                            RowIsCurrentServer(
+                        local joinText,
+                            joinEnabled =
+                            RowJoinState(
                                 row
                             )
 
                         local disabled =
-                            full == true
-                            or current == true
+                            joinEnabled ~= true
 
                         object.JoinButton.Active =
                             disabled ~= true
 
                         object.JoinButton.Text =
-                            current and "Current"
-                            or full and "Full"
-                            or "Join"
+                            joinText
 
                         object.JoinButton.BackgroundColor3 =
                             disabled and Library.Scheme.BackgroundColor
                             or Color3.fromRGB(39, 142, 68)
+
+                        object.JoinButton.BackgroundTransparency =
+                            disabled and 0.26
+                            or 0.02
 
                         object.JoinButton.TextTransparency =
                             disabled and 0.62
