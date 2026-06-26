@@ -3495,6 +3495,12 @@ function Library:CreateServerFinderHUD(Info)
             "Rules"
         )
 
+    RulesButton.BackgroundTransparency =
+        0.38
+
+    RulesButton.TextTransparency =
+        0.40
+
     local RowsFrame = New("ScrollingFrame", {
         Active = true,
         BackgroundTransparency = 1,
@@ -3809,22 +3815,40 @@ function Library:CreateServerFinderHUD(Info)
         local count =
             CountAllFilters()
 
-        if count > 0 then
+        FilterButton.Text =
+            "F:"
+            .. tostring(count)
 
-            FilterButton.Text =
-                "Filters: "
-                .. tostring(count)
+        FilterButton.BackgroundColor3 =
+            Library.Scheme.MainColor
 
-        else
-
-            FilterButton.Text =
-                "Filters"
-        end
-
-        SetButtonSelected(
-            FilterButton,
+        FilterButton.BackgroundTransparency =
             count > 0
-        )
+            and 0.22
+            or 0.38
+
+        FilterButton.TextTransparency =
+            count > 0
+            and 0.14
+            or 0.46
+
+        local stroke =
+            FilterButton:FindFirstChildOfClass(
+                "UIStroke"
+            )
+
+        if stroke then
+
+            stroke.Color =
+                count > 0
+                and Library.Scheme.AccentColor
+                or Library.Scheme.OutlineColor
+
+            stroke.Transparency =
+                count > 0
+                and 0.30
+                or 0.46
+        end
     end
 
     local function BuildCombinedOptions(baseList, _getter)
@@ -4948,17 +4972,340 @@ function Library:CreateServerFinderHUD(Info)
         return enabled == true
     end
 
-    local function RowName(row)
+    local function RowRarityColor(row)
+
+        local rarity =
+            RowRarity(
+                row
+            )
+
+        local colors = {
+            Common =
+                Color3.fromRGB(
+                    148,
+                    163,
+                    184
+                ),
+
+            Uncommon =
+                Color3.fromRGB(
+                    74,
+                    222,
+                    128
+                ),
+
+            Rare =
+                Color3.fromRGB(
+                    96,
+                    165,
+                    250
+                ),
+
+            Epic =
+                Color3.fromRGB(
+                    192,
+                    132,
+                    252
+                ),
+
+            Legendary =
+                Color3.fromRGB(
+                    250,
+                    204,
+                    21
+                ),
+
+            Mythic =
+                Color3.fromRGB(
+                    168,
+                    85,
+                    247
+                ),
+
+            Mythical =
+                Color3.fromRGB(
+                    168,
+                    85,
+                    247
+                ),
+
+            Super =
+                Color3.fromRGB(
+                    244,
+                    114,
+                    182
+                ),
+
+            Secret =
+                Color3.fromRGB(
+                    248,
+                    113,
+                    113
+                ),
+        }
+
+        return colors[rarity]
+            or Library.Scheme.AccentColor
+    end
+
+    local function RowCleanTitleText(value)
+
+        local text =
+            Clean(
+                value
+            )
+
+        text =
+            text:gsub(
+                "%s*%([^%)]+%)%s*$",
+                ""
+            )
+
+        text =
+            text:gsub(
+                "%s+",
+                " "
+            )
+
+        return Clean(
+            text
+        )
+    end
+
+    local function RowNormalizeSizeText(value)
+
+        local text =
+            Clean(
+                value
+            )
+
+        if text == "Mega" then
+            return "Huge"
+        end
+
+        if text == "Regular" then
+            return "Normal"
+        end
+
+        return text
+    end
+
+    local function RowNormalizeVariantText(value)
+
+        local text =
+            Clean(
+                value
+            )
+
+        if text == "Regular" then
+            return "Normal"
+        end
+
+        return text
+    end
+
+    local function RowBuildFallbackTitle(row)
+
+        row =
+            type(row) == "table"
+            and row
+            or {}
 
         local pet =
-            RowPetName(
-                row
+            Clean(
+                row.BasePet
+                or row.BestPet
+                or row.PetName
+                or row.Pet
+                or row.Name
+                or "Unknown Pet"
+            )
+
+        pet =
+            RowCleanTitleText(
+                pet
             )
 
         if pet == "" then
             pet =
                 "Unknown Pet"
         end
+
+        local size =
+            RowNormalizeSizeText(
+                row.Size
+                or row.size
+            )
+
+        local variant =
+            RowNormalizeVariantText(
+                row.Variant
+                or row.variant
+                or row.Mutation
+                or row.mutation
+            )
+
+        local parts =
+            {}
+
+        if size ~= ""
+        and size ~= "Normal"
+        and size ~= "Any" then
+
+            table.insert(
+                parts,
+                size
+            )
+        end
+
+        if variant ~= ""
+        and variant ~= "Normal"
+        and variant ~= "Any" then
+
+            table.insert(
+                parts,
+                variant
+            )
+        end
+
+        table.insert(
+            parts,
+            pet
+        )
+
+        local title =
+            table.concat(
+                parts,
+                " "
+            )
+
+        local count =
+            math.floor(
+                tonumber(
+                    row.PetCount
+                    or row.Count
+                    or row.Amount
+                )
+                or 1
+            )
+
+        if count > 1
+        and not title:lower():find(" x" .. tostring(count), 1, true) then
+
+            title =
+                title
+                .. " x"
+                .. tostring(count)
+        end
+
+        return title
+    end
+
+    local function RowName(row)
+
+        row =
+            type(row) == "table"
+            and row
+            or {}
+
+        local title =
+            RowCleanTitleText(
+                row.DisplayName
+                or row.BestDisplayName
+                or row.PetName
+                or row.Pet
+                or row.Name
+            )
+
+        if title ~= ""
+        and title ~= "Unknown Pet" then
+            return title
+        end
+
+        return RowBuildFallbackTitle(
+            row
+        )
+    end
+
+    local function RowFormatShortTime(seconds)
+
+        seconds =
+            math.max(
+                0,
+                math.floor(
+                    tonumber(seconds)
+                    or 0
+                )
+            )
+
+        if seconds >= 60 then
+
+            local minutes =
+                math.floor(seconds / 60)
+
+            local remaining =
+                seconds % 60
+
+            return tostring(minutes)
+                .. "m"
+                .. tostring(remaining)
+                .. "s"
+        end
+
+        return tostring(seconds)
+            .. "s"
+    end
+
+    local function RowFreshnessText(row)
+
+        local joinText,
+            joinEnabled =
+            RowJoinState(
+                row
+            )
+
+        if joinEnabled ~= true then
+
+            return Clean(
+                joinText
+            ) ~= ""
+            and Clean(joinText)
+            or "Stale"
+        end
+
+        local freshness =
+            Clean(
+                row.Freshness
+                or row.freshness
+            )
+
+        if freshness ~= "" then
+            return freshness
+        end
+
+        local maxAutoAge =
+            tonumber(
+                row.AutoJoinMaxAge
+                or row.autoJoinMaxAge
+            )
+            or 12
+
+        if RowReportAge(row) > maxAutoAge then
+            return "Aging"
+        end
+
+        return "Fresh"
+    end
+
+    local function RowMeta(row)
+
+        row =
+            type(row) == "table"
+            and row
+            or {}
+
+        local parts =
+            {}
 
         local rarity =
             RowRarity(
@@ -4967,165 +5314,121 @@ function Library:CreateServerFinderHUD(Info)
 
         if rarity ~= "" then
 
-            return pet
-                .. " ("
-                .. rarity
-                .. ")"
+            table.insert(
+                parts,
+                rarity
+            )
         end
 
-        return pet
-    end
-
-    local function RowMeta(row)
-
-        local now =
-            os.time()
-
         local playing =
-            tonumber(row.Playing or row.playing or row.Players or row.players)
+            tonumber(
+                row.Playing
+                or row.playing
+                or row.Players
+                or row.players
+            )
             or 0
 
         local maxPlayers =
-            tonumber(row.MaxPlayers or row.maxPlayers)
+            tonumber(
+                row.MaxPlayers
+                or row.maxPlayers
+            )
             or 8
 
-        local reportedAt =
-            tonumber(row.ReportedAt or row.reportedAt)
-            or 0
-
-        local age =
-            ""
-
-        if reportedAt > 0 then
-
-            age =
-                tostring(
-                    math.max(
-                        0,
-                        now - reportedAt
-                    )
-                )
-                .. "s ago"
-
-        else
-
-            age =
-                Clean(row.AgeText or row.ageText or row.Age or row.age)
-
-            if age == "" then
-                age =
-                    "?s ago"
-            end
-        end
-
-        local timeLeft =
-            nil
-
-        local expiresAt =
-            tonumber(row.ExpiresAt or row.expiresAt)
-            or 0
-
-        if expiresAt > 0 then
-
-            timeLeft =
-                expiresAt
-                - now
-
-        else
-
-            local rawTimeLeft =
-                tonumber(row.TimeLeft or row.timeLeft)
-
-            if rawTimeLeft then
-
-                if reportedAt > 0 then
-
-                    timeLeft =
-                        rawTimeLeft
-                        - math.max(
-                            0,
-                            now - reportedAt
-                        )
-
-                else
-
-                    timeLeft =
-                        rawTimeLeft
-                end
-            end
-        end
-
-        local life =
-            ""
-
-        if timeLeft ~= nil then
-
-            timeLeft =
-                math.max(
-                    0,
-                    math.floor(timeLeft)
-                )
-
-            local minutes =
-                math.floor(timeLeft / 60)
-
-            local seconds =
-                math.floor(timeLeft % 60)
-
-            life =
-                tostring(minutes)
-                .. "m "
-                .. tostring(seconds)
-                .. "s left"
-
-        else
-
-            life =
-                Clean(row.LifeText or row.TimeLeftText or row.timeLeftText)
-        end
-
-        local meta =
+        table.insert(
+            parts,
             tostring(playing)
             .. "/"
             .. tostring(maxPlayers)
-            .. " players · "
-            .. age
+        )
 
-        if life ~= "" then
-
-            meta =
-                meta
-                .. " · "
-                .. life
-        end
-
-        local otherPetCount =
-            tonumber(
-                row.OtherPetCount
-                or row.OtherPets
-                or row.MorePets
+        local timeLeft =
+            RowTimeLeft(
+                row
             )
-            or 0
 
-        otherPetCount =
-            math.floor(
-                math.max(
-                    0,
-                    otherPetCount
+        if timeLeft ~= nil then
+
+            table.insert(
+                parts,
+                RowFormatShortTime(
+                    timeLeft
                 )
             )
 
-        if otherPetCount > 0 then
+        else
 
-            meta =
-                meta
-                .. " · +"
-                .. tostring(otherPetCount)
-                .. " more"
+            local lifeText =
+                Clean(
+                    row.LifeText
+                    or row.TimeLeftText
+                    or row.timeLeftText
+                    or row.Timer
+                )
+
+            if lifeText ~= "" then
+
+                table.insert(
+                    parts,
+                    lifeText
+                )
+            end
         end
 
-        return meta
+        table.insert(
+            parts,
+            RowFreshnessText(
+                row
+            )
+        )
+
+        return table.concat(
+            parts,
+            " · "
+        )
     end
+
+    local function RowIsVisualDisabled(row)
+
+        local _joinText,
+            joinEnabled =
+            RowJoinState(
+                row
+            )
+
+        return joinEnabled ~= true
+    end
+
+    local function RowBackgroundTransparency(row)
+
+        if RowIsVisualDisabled(row) == true then
+            return 0.48
+        end
+
+        if RowReportAge(row) > (
+            tonumber(
+                row.AutoJoinMaxAge
+                or row.autoJoinMaxAge
+            )
+            or 12
+        ) then
+
+            return 0.34
+        end
+
+        return 0.24
+    end
+
+    local function RowStrokeTransparency(row)
+
+        if RowIsVisualDisabled(row) == true then
+            return 0.58
+        end
+
+        return 0.30
+    end
+
 
     local function ClearRows()
 
@@ -5153,12 +5456,6 @@ function Library:CreateServerFinderHUD(Info)
 
     local function CreateRow(row)
 
-        local full =
-            RowIsFull(row)
-
-        local current =
-            RowIsCurrentServer(row)
-
         local joinText,
             joinEnabled =
             RowJoinState(
@@ -5168,9 +5465,14 @@ function Library:CreateServerFinderHUD(Info)
         local disabled =
             joinEnabled ~= true
 
+        local rarityColor =
+            RowRarityColor(
+                row
+            )
+
         local Holder = New("Frame", {
             BackgroundColor3 = "MainColor",
-            BackgroundTransparency = full and 0.56 or 0.30,
+            BackgroundTransparency = RowBackgroundTransparency(row),
             Size = UDim2.new(1, -4, 0, RowHeight),
             ZIndex = Body.ZIndex + 2,
             Parent = RowsFrame,
@@ -5184,16 +5486,33 @@ function Library:CreateServerFinderHUD(Info)
             })
         )
 
-        New("UIStroke", {
+        local HolderStroke = New("UIStroke", {
             Color = "OutlineColor",
-            Transparency = full and 0.58 or 0.32,
+            Transparency = RowStrokeTransparency(row),
             Parent = Holder,
         })
 
+        local RarityBar = New("Frame", {
+            BackgroundColor3 = rarityColor,
+            BackgroundTransparency = disabled and 0.42 or 0,
+            Position = UDim2.fromOffset(0, 0),
+            Size = UDim2.new(0, 3, 1, 0),
+            ZIndex = Holder.ZIndex + 1,
+            Parent = Holder,
+        })
+
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = RarityBar,
+            })
+        )
+
         local Dot = New("Frame", {
-            BackgroundColor3 = full and "OutlineColor" or "AccentColor",
-            BackgroundTransparency = disabled and 0.45 or 0,
-            Position = UDim2.fromOffset(8, 8),
+            BackgroundColor3 = rarityColor,
+            BackgroundTransparency = disabled and 0.45 or 0.02,
+            Position = UDim2.fromOffset(10, 8),
             Size = UDim2.fromOffset(6, 6),
             ZIndex = Holder.ZIndex + 1,
             Parent = Holder,
@@ -5209,11 +5528,11 @@ function Library:CreateServerFinderHUD(Info)
 
         local NameLabel = New("TextLabel", {
             BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(20, 4),
-            Size = UDim2.new(1, -90, 0, 18),
+            Position = UDim2.fromOffset(21, 4),
+            Size = UDim2.new(1, -91, 0, 18),
             Text = RowName(row),
             TextSize = 12,
-            TextTransparency = full and 0.50 or 0.03,
+            TextTransparency = disabled and 0.40 or 0.02,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextTruncate = Enum.TextTruncate.AtEnd,
             ZIndex = Holder.ZIndex + 1,
@@ -5222,11 +5541,11 @@ function Library:CreateServerFinderHUD(Info)
 
         local MetaLabel = New("TextLabel", {
             BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(20, 25),
-            Size = UDim2.new(1, -90, 0, 18),
+            Position = UDim2.fromOffset(21, 25),
+            Size = UDim2.new(1, -91, 0, 18),
             Text = RowMeta(row),
             TextSize = 11,
-            TextTransparency = full and 0.64 or 0.42,
+            TextTransparency = disabled and 0.62 or 0.34,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextTruncate = Enum.TextTruncate.AtEnd,
             ZIndex = Holder.ZIndex + 1,
@@ -5236,12 +5555,12 @@ function Library:CreateServerFinderHUD(Info)
         local JoinButton = New("TextButton", {
             Active = disabled ~= true,
             BackgroundColor3 = disabled and "BackgroundColor" or Color3.fromRGB(39, 142, 68),
-            BackgroundTransparency = disabled and 0.26 or 0.02,
+            BackgroundTransparency = disabled and 0.28 or 0.03,
             Position = UDim2.new(1, -65, 0, 9),
             Size = UDim2.fromOffset(56, 34),
             Text = joinText,
             TextSize = 12,
-            TextTransparency = disabled and 0.62 or 0.05,
+            TextTransparency = disabled and 0.62 or 0.04,
             ZIndex = Holder.ZIndex + 1,
             Parent = Holder,
         })
@@ -5253,6 +5572,12 @@ function Library:CreateServerFinderHUD(Info)
                 Parent = JoinButton,
             })
         )
+
+        local JoinStroke = New("UIStroke", {
+            Color = disabled and "OutlineColor" or Color3.fromRGB(74, 222, 128),
+            Transparency = disabled and 0.54 or 0.18,
+            Parent = JoinButton,
+        })
 
         JoinButton.MouseButton1Click:Connect(function()
 
@@ -5273,6 +5598,15 @@ function Library:CreateServerFinderHUD(Info)
                 Holder =
                     Holder,
 
+                Stroke =
+                    HolderStroke,
+
+                RarityBar =
+                    RarityBar,
+
+                Dot =
+                    Dot,
+
                 Row =
                     row,
 
@@ -5284,6 +5618,9 @@ function Library:CreateServerFinderHUD(Info)
 
                 JoinButton =
                     JoinButton,
+
+                JoinStroke =
+                    JoinStroke,
             }
         )
     end
@@ -5313,24 +5650,81 @@ function Library:CreateServerFinderHUD(Info)
 
                 else
 
+                    local joinText,
+                        joinEnabled =
+                        RowJoinState(
+                            row
+                        )
+
+                    local disabled =
+                        joinEnabled ~= true
+
+                    local rarityColor =
+                        RowRarityColor(
+                            row
+                        )
+
+                    if object.Holder then
+
+                        object.Holder.BackgroundTransparency =
+                            RowBackgroundTransparency(
+                                row
+                            )
+                    end
+
+                    if object.Stroke then
+
+                        object.Stroke.Transparency =
+                            RowStrokeTransparency(
+                                row
+                            )
+                    end
+
+                    if object.RarityBar then
+
+                        object.RarityBar.BackgroundColor3 =
+                            rarityColor
+
+                        object.RarityBar.BackgroundTransparency =
+                            disabled and 0.42
+                            or 0
+                    end
+
+                    if object.Dot then
+
+                        object.Dot.BackgroundColor3 =
+                            rarityColor
+
+                        object.Dot.BackgroundTransparency =
+                            disabled and 0.45
+                            or 0.02
+                    end
+
+                    if object.NameLabel then
+
+                        object.NameLabel.Text =
+                            RowName(
+                                row
+                            )
+
+                        object.NameLabel.TextTransparency =
+                            disabled and 0.40
+                            or 0.02
+                    end
+
                     if object.MetaLabel then
 
                         object.MetaLabel.Text =
                             RowMeta(
                                 row
                             )
+
+                        object.MetaLabel.TextTransparency =
+                            disabled and 0.62
+                            or 0.34
                     end
 
                     if object.JoinButton then
-
-                        local joinText,
-                            joinEnabled =
-                            RowJoinState(
-                                row
-                            )
-
-                        local disabled =
-                            joinEnabled ~= true
 
                         object.JoinButton.Active =
                             disabled ~= true
@@ -5343,12 +5737,23 @@ function Library:CreateServerFinderHUD(Info)
                             or Color3.fromRGB(39, 142, 68)
 
                         object.JoinButton.BackgroundTransparency =
-                            disabled and 0.26
-                            or 0.02
+                            disabled and 0.28
+                            or 0.03
 
                         object.JoinButton.TextTransparency =
                             disabled and 0.62
-                            or 0.05
+                            or 0.04
+                    end
+
+                    if object.JoinStroke then
+
+                        object.JoinStroke.Color =
+                            disabled and Library.Scheme.OutlineColor
+                            or Color3.fromRGB(74, 222, 128)
+
+                        object.JoinStroke.Transparency =
+                            disabled and 0.54
+                            or 0.18
                     end
                 end
             end
