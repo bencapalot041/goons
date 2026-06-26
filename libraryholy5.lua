@@ -3658,14 +3658,58 @@ function Library:CreateServerFinderHUD(Info)
             and Hud.Rows
             or {}
 
+        local function countUniqueServers(rows)
+
+            local seen =
+                {}
+
+            local count =
+                0
+
+            for _, row in ipairs(rows or {}) do
+
+                if type(row) == "table" then
+
+                    local jobId =
+                        Clean(
+                            row.JobId
+                            or row.jobId
+                            or row.ServerId
+                            or row.id
+                            or row.Id
+                            or row.Key
+                        )
+
+                    if jobId == "" then
+
+                        jobId =
+                            tostring(row)
+                    end
+
+                    if seen[jobId] ~= true then
+
+                        seen[jobId] =
+                            true
+
+                        count =
+                            count + 1
+                    end
+                end
+            end
+
+            return count
+        end
+
         InfoLabel.Text =
             "Current: "
             .. tostring(CurrentServerText)
             .. " · "
-            .. tostring(#Hud.FilteredRows)
+            .. tostring(countUniqueServers(Hud.FilteredRows))
             .. "/"
-            .. tostring(#Hud.Rows)
-            .. " servers"
+            .. tostring(countUniqueServers(Hud.Rows))
+            .. " server(s) · "
+            .. tostring(#Hud.FilteredRows)
+            .. " pet(s)"
     end
 
     local function UpdateFilterButtonText()
@@ -4811,6 +4855,31 @@ function Library:CreateServerFinderHUD(Info)
                 meta
                 .. " · "
                 .. life
+        end
+
+        local otherPetCount =
+            tonumber(
+                row.OtherPetCount
+                or row.OtherPets
+                or row.MorePets
+            )
+            or 0
+
+        otherPetCount =
+            math.floor(
+                math.max(
+                    0,
+                    otherPetCount
+                )
+            )
+
+        if otherPetCount > 0 then
+
+            meta =
+                meta
+                .. " · +"
+                .. tostring(otherPetCount)
+                .. " more"
         end
 
         return meta
