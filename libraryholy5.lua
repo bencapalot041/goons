@@ -1354,15 +1354,196 @@ function Library:GetKeyString(KeyCode: Enum.KeyCode)
 end
 
 function Library:GetTextBounds(Text: string, Font: Font, Size: number, Width: number?): (number, number)
-    local Params = Instance.new("GetTextBoundsParams")
-    Params.Text = Text
-    Params.RichText = true
-    Params.Font = Font
-    Params.Size = Size
-    Params.Width = Width or workspace.CurrentCamera.ViewportSize.X - 32
 
-    local Bounds = TextService:GetTextBoundsAsync(Params)
-    return Bounds.X, Bounds.Y
+    Text =
+        tostring(Text or "")
+
+    Size =
+        math.clamp(
+            tonumber(Size)
+            or 14,
+            1,
+            100
+        )
+
+    local viewportWidth =
+        1280
+
+    pcall(function()
+
+        if workspace.CurrentCamera then
+
+            viewportWidth =
+                tonumber(
+                    workspace.CurrentCamera.ViewportSize.X
+                )
+                or viewportWidth
+        end
+    end)
+
+    Width =
+        math.clamp(
+            tonumber(Width)
+            or (
+                viewportWidth
+                - 32
+            ),
+            1,
+            100000
+        )
+
+    local ok,
+        Bounds =
+        pcall(function()
+
+            local Params =
+                Instance.new(
+                    "GetTextBoundsParams"
+                )
+
+            Params.Text =
+                Text
+
+            Params.RichText =
+                true
+
+            if typeof(Font) == "Font" then
+
+                Params.Font =
+                    Font
+
+            elseif typeof(Font) == "EnumItem" then
+
+                Params.Font =
+                    Font.fromEnum(
+                        Font
+                    )
+
+            elseif typeof(Library.Scheme.Font) == "Font" then
+
+                Params.Font =
+                    Library.Scheme.Font
+
+            else
+
+                Params.Font =
+                    Font.fromEnum(
+                        Enum.Font.GothamMedium
+                    )
+            end
+
+            Params.Size =
+                Size
+
+            Params.Width =
+                Width
+
+            return TextService:GetTextBoundsAsync(
+                Params
+            )
+        end)
+
+    if ok == true
+    and typeof(Bounds) == "Vector2" then
+
+        return math.max(
+            1,
+            math.floor(Bounds.X + 0.5)
+        ),
+        math.max(
+            1,
+            math.floor(Bounds.Y + 0.5)
+        )
+    end
+
+    local plainText =
+        Text:gsub(
+            "<[^>]->",
+            ""
+        )
+
+    plainText =
+        plainText:gsub(
+            "&nbsp;",
+            " "
+        )
+
+    local longestLine =
+        0
+
+    local lineCount =
+        0
+
+    for line in tostring(plainText):gmatch("[^\n]*") do
+
+        lineCount =
+            lineCount + 1
+
+        longestLine =
+            math.max(
+                longestLine,
+                #line
+            )
+
+        if line == ""
+        and lineCount > 1 then
+            break
+        end
+    end
+
+    lineCount =
+        math.max(
+            1,
+            lineCount
+        )
+
+    longestLine =
+        math.max(
+            1,
+            longestLine
+        )
+
+    local estimatedWidth =
+        longestLine
+        * Size
+        * 0.58
+
+    local wrappedLines =
+        math.max(
+            1,
+            math.ceil(
+                estimatedWidth
+                / Width
+            )
+        )
+
+    local finalWidth =
+        math.clamp(
+            estimatedWidth,
+            Size,
+            Width
+        )
+
+    local finalHeight =
+        math.max(
+            Size * 1.35,
+            (
+                wrappedLines
+                + lineCount
+                - 1
+            )
+            * Size
+            * 1.35
+        )
+
+    return math.max(
+        1,
+        math.floor(finalWidth + 0.5)
+    ),
+    math.max(
+        1,
+        math.floor(finalHeight + 0.5)
+    )
 end
 
 function Library:MouseIsOverFrame(Frame: GuiObject, Mouse: Vector2): boolean
