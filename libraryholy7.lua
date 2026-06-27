@@ -2881,6 +2881,18 @@ function Library:CreateServerFinderHUD(Info)
         Minimized = false,
         FiltersVisible = false,
 
+        Scale =
+            math.clamp(
+                tonumber(Info.Scale)
+                or (
+                    tonumber(Info.HudScale)
+                    and tonumber(Info.HudScale) / 100
+                )
+                or 0.80,
+                0.60,
+                1.10
+            ),
+
         OnRefresh = Info.OnRefresh,
         OnJoin = Info.OnJoin,
         OnVisibleChanged = Info.OnVisibleChanged,
@@ -3416,12 +3428,14 @@ function Library:CreateServerFinderHUD(Info)
         })
     )
 
-    table.insert(
-        Library.Scales,
+    local ServerFinderHudScale =
         New("UIScale", {
-            Parent = HudFrame,
+            Scale =
+                Hud.Scale,
+
+            Parent =
+                HudFrame,
         })
-    )
 
     Library:AddOutline(
         HudFrame
@@ -3755,12 +3769,14 @@ function Library:CreateServerFinderHUD(Info)
         })
     )
 
-    table.insert(
-        Library.Scales,
+    local ServerFinderFilterScale =
         New("UIScale", {
-            Parent = FilterFrame,
+            Scale =
+                Hud.Scale,
+
+            Parent =
+                FilterFrame,
         })
-    )
 
     Library:AddOutline(
         FilterFrame
@@ -3869,6 +3885,49 @@ function Library:CreateServerFinderHUD(Info)
 
     local LastFilterPositionKey =
         ""
+
+    local function ApplyServerFinderScale()
+
+        Hud.Scale =
+            math.clamp(
+                tonumber(Hud.Scale)
+                or 0.80,
+                0.60,
+                1.10
+            )
+
+        if ServerFinderHudScale then
+
+            ServerFinderHudScale.Scale =
+                Hud.Scale
+        end
+
+        if ServerFinderFilterScale then
+
+            ServerFinderFilterScale.Scale =
+                Hud.Scale
+        end
+
+        return true
+    end
+
+    ApplyServerFinderScale()
+
+    function Hud:SetScale(value)
+
+        Hud.Scale =
+            math.clamp(
+                tonumber(value)
+                or Hud.Scale
+                or 0.80,
+                0.60,
+                1.10
+            )
+
+        ApplyServerFinderScale()
+
+        return true
+    end
 
     local function NotifySettingsChanged()
 
@@ -6278,6 +6337,20 @@ function Library:CreateServerFinderHUD(Info)
             HideFull =
                 Hud.HideFull ~= false,
 
+            HudScale =
+                math.floor(
+                    (
+                        tonumber(Hud.Scale)
+                        or 0.80
+                    )
+                    * 100
+                    + 0.5
+                ),
+
+            Scale =
+                tonumber(Hud.Scale)
+                or 0.80,
+
             AutoJoinMode =
                 NormalizeAutoJoinMode(
                     Hud.AutoJoinMode
@@ -6342,6 +6415,16 @@ function Library:CreateServerFinderHUD(Info)
 
         Hud.HideFull =
             settings.HideFull ~= false
+
+        Hud:SetScale(
+            settings.Scale
+            or (
+                tonumber(settings.HudScale)
+                and tonumber(settings.HudScale) / 100
+            )
+            or Hud.Scale
+            or 0.80
+        )
 
         Hud.AutoJoinMode =
             NormalizeAutoJoinMode(
@@ -6813,6 +6896,16 @@ function Library:CreateServerFinderHUD(Info)
     ApplySavedPosition(
         FilterFrame,
         Info.FilterPosition
+    )
+
+    Hud:SetScale(
+        Info.Scale
+        or (
+            tonumber(Info.HudScale)
+            and tonumber(Info.HudScale) / 100
+        )
+        or Hud.Scale
+        or 0.80
     )
 
     SetButtonSelected(
