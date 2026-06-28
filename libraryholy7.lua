@@ -15174,6 +15174,603 @@ function Library:CreateWindow(WindowInfo)
             return Segmented
         end
 
+        function Tab:AddTopNavigation(Info)
+
+            Info =
+                Info
+                or {}
+
+            local RawItems =
+                type(Info.Items) == "table"
+                and Info.Items
+                or {
+                    {
+                        Key = "Collect",
+                        Text = "🎯 Collect",
+                        AccentColor = Color3.fromRGB(255, 70, 88),
+                    },
+
+                    {
+                        Key = "Plant",
+                        Text = "🌱 Plant",
+                        AccentColor = Color3.fromRGB(94, 255, 120),
+                    },
+
+                    {
+                        Key = "Tools",
+                        Text = "🛠️ Tools",
+                        AccentColor = Color3.fromRGB(86, 160, 255),
+                    },
+
+                    {
+                        Key = "Extra",
+                        Text = "⭐ Extra",
+                        AccentColor = Color3.fromRGB(255, 216, 74),
+                    },
+                }
+
+            local Items =
+                {}
+
+            local function readItem(raw)
+
+                if type(raw) == "table" then
+
+                    local key =
+                        tostring(
+                            raw.Key
+                            or raw.Value
+                            or raw.Name
+                            or raw.Text
+                            or ""
+                        )
+
+                    local text =
+                        tostring(
+                            raw.Text
+                            or raw.Name
+                            or raw.Key
+                            or raw.Value
+                            or ""
+                        )
+
+                    local accent =
+                        typeof(raw.AccentColor) == "Color3"
+                        and raw.AccentColor
+                        or typeof(raw.Color) == "Color3"
+                        and raw.Color
+                        or Library.Scheme.AccentColor
+
+                    if key ~= "" then
+
+                        table.insert(
+                            Items,
+                            {
+                                Key =
+                                    key,
+
+                                Text =
+                                    text ~= ""
+                                    and text
+                                    or key,
+
+                                AccentColor =
+                                    accent,
+                            }
+                        )
+                    end
+
+                    return
+                end
+
+                local text =
+                    tostring(raw or "")
+
+                if text ~= "" then
+
+                    table.insert(
+                        Items,
+                        {
+                            Key =
+                                text,
+
+                            Text =
+                                text,
+
+                            AccentColor =
+                                Library.Scheme.AccentColor,
+                        }
+                    )
+                end
+            end
+
+            for _, raw in ipairs(RawItems) do
+
+                readItem(
+                    raw
+                )
+            end
+
+            if #Items <= 0 then
+
+                table.insert(
+                    Items,
+                    {
+                        Key =
+                            "Collect",
+
+                        Text =
+                            "🎯 Collect",
+
+                        AccentColor =
+                            Library.Scheme.AccentColor,
+                    }
+                )
+            end
+
+            local Callback =
+                Info.Callback
+                or Info.Func
+
+            local Height =
+                math.clamp(
+                    tonumber(Info.Height)
+                    or 58,
+                    46,
+                    78
+                )
+
+            local BarHeight =
+                math.clamp(
+                    tonumber(Info.BarHeight)
+                    or 42,
+                    34,
+                    54
+                )
+
+            local PaddingX =
+                math.clamp(
+                    tonumber(Info.PaddingX)
+                    or 8,
+                    4,
+                    18
+                )
+
+            local ButtonGap =
+                math.clamp(
+                    tonumber(Info.ButtonGap)
+                    or 7,
+                    3,
+                    12
+                )
+
+            local Default =
+                tostring(
+                    Info.Default
+                    or Items[1].Key
+                )
+
+            local function isValidValue(value)
+
+                value =
+                    tostring(value or "")
+
+                for _, item in ipairs(Items) do
+
+                    if item.Key == value then
+                        return true
+                    end
+                end
+
+                return false
+            end
+
+            if isValidValue(Default) ~= true then
+
+                Default =
+                    Items[1].Key
+            end
+
+            local function blendColor(a, b, t)
+
+                t =
+                    math.clamp(
+                        tonumber(t)
+                        or 0,
+                        0,
+                        1
+                    )
+
+                return Color3.new(
+                    a.R + (b.R - a.R) * t,
+                    a.G + (b.G - a.G) * t,
+                    a.B + (b.B - a.B) * t
+                )
+            end
+
+            Tab.TopBarHeight =
+                Height
+
+            if Tab.TopBarHolder
+            and Tab.TopBarHolder.Parent then
+
+                pcall(function()
+
+                    Tab.TopBarHolder:Destroy()
+                end)
+            end
+
+            local TopHolder =
+                New("Frame", {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.fromOffset(0, 0),
+                    Size = UDim2.new(1, 0, 0, Height),
+                    Parent = TabContainer,
+                })
+
+            local NavBar =
+                New("Frame", {
+                    BackgroundColor3 = "MainColor",
+                    BackgroundTransparency = 0.18,
+                    Position = UDim2.new(0, PaddingX, 0, 7),
+                    Size = UDim2.new(1, -PaddingX * 2, 0, BarHeight),
+                    Parent = TopHolder,
+                })
+
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(0, math.max(8, Library.CornerRadius + 2)),
+                    Parent = NavBar,
+                })
+            )
+
+            Library:AddOutline(
+                NavBar
+            )
+
+            New("UIGradient", {
+                Rotation = 90,
+
+                Transparency =
+                    NumberSequence.new({
+                        NumberSequenceKeypoint.new(0, 0.02),
+                        NumberSequenceKeypoint.new(0.55, 0.10),
+                        NumberSequenceKeypoint.new(1, 0.22),
+                    }),
+
+                Parent =
+                    NavBar,
+            })
+
+            local ButtonHolder =
+                New("Frame", {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.fromOffset(4, 4),
+                    Size = UDim2.new(1, -8, 1, -8),
+                    Parent = NavBar,
+                })
+
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                HorizontalFlex = Enum.UIFlexAlignment.Fill,
+                Padding = UDim.new(0, ButtonGap),
+                Parent = ButtonHolder,
+            })
+
+            local Navigation = {
+                Value = Default,
+                Buttons = {},
+                ButtonMap = {},
+                Holder = TopHolder,
+                NavBar = NavBar,
+                Type = "TopNavigation",
+            }
+
+            local function applyButtonVisual(entry, selected, hovering)
+
+                local accent =
+                    entry.AccentColor
+                    or Library.Scheme.AccentColor
+
+                local baseColor =
+                    Library.Scheme.MainColor
+
+                local backgroundColor =
+                    selected
+                    and blendColor(
+                        baseColor,
+                        accent,
+                        0.24
+                    )
+                    or hovering
+                    and blendColor(
+                        baseColor,
+                        accent,
+                        0.10
+                    )
+                    or baseColor
+
+                entry.Button.BackgroundColor3 =
+                    backgroundColor
+
+                entry.Button.BackgroundTransparency =
+                    selected and 0.08
+                    or hovering and 0.20
+                    or 0.42
+
+                entry.Button.TextTransparency =
+                    selected and 0.02
+                    or hovering and 0.16
+                    or 0.36
+
+                entry.Stroke.Color =
+                    selected and accent
+                    or hovering and accent
+                    or Library.Scheme.OutlineColor
+
+                entry.Stroke.Transparency =
+                    selected and 0.10
+                    or hovering and 0.32
+                    or 0.58
+
+                entry.Underline.BackgroundColor3 =
+                    accent
+
+                entry.Underline.BackgroundTransparency =
+                    selected and 0
+                    or 1
+
+                entry.Underline.Size =
+                    selected
+                    and UDim2.new(1, -26, 0, 2)
+                    or UDim2.new(0, 0, 0, 2)
+
+                entry.Glow.BackgroundColor3 =
+                    accent
+
+                entry.Glow.BackgroundTransparency =
+                    selected and 0.78
+                    or 1
+
+                Library.Registry[entry.Button] =
+                    Library.Registry[entry.Button]
+                    or {}
+
+                Library.Registry[entry.Stroke] =
+                    Library.Registry[entry.Stroke]
+                    or {}
+
+                Library.Registry[entry.Underline] =
+                    Library.Registry[entry.Underline]
+                    or {}
+
+                Library.Registry[entry.Glow] =
+                    Library.Registry[entry.Glow]
+                    or {}
+
+                Library.Registry[entry.Button].TextColor3 =
+                    "FontColor"
+            end
+
+            local function createButton(item)
+
+                local Button =
+                    New("TextButton", {
+                        BackgroundColor3 = "MainColor",
+                        BackgroundTransparency = 0.42,
+                        Size = UDim2.fromScale(1, 1),
+                        Text = item.Text,
+                        TextSize = 15,
+                        TextTransparency = 0.36,
+                        TextTruncate = Enum.TextTruncate.AtEnd,
+                        Parent = ButtonHolder,
+                    })
+
+                table.insert(
+                    Library.Corners,
+                    New("UICorner", {
+                        CornerRadius = UDim.new(0, math.max(7, Library.CornerRadius + 1)),
+                        Parent = Button,
+                    })
+                )
+
+                local Stroke =
+                    New("UIStroke", {
+                        Color = "OutlineColor",
+                        Transparency = 0.58,
+                        Thickness = 1,
+                        Parent = Button,
+                    })
+
+                local Glow =
+                    New("Frame", {
+                        BackgroundColor3 = item.AccentColor,
+                        BackgroundTransparency = 1,
+                        Position = UDim2.fromOffset(0, 0),
+                        Size = UDim2.fromScale(1, 1),
+                        ZIndex = Button.ZIndex - 1,
+                        Parent = Button,
+                    })
+
+                table.insert(
+                    Library.Corners,
+                    New("UICorner", {
+                        CornerRadius = UDim.new(0, math.max(7, Library.CornerRadius + 1)),
+                        Parent = Glow,
+                    })
+                )
+
+                local Underline =
+                    New("Frame", {
+                        AnchorPoint = Vector2.new(0.5, 1),
+                        BackgroundColor3 = item.AccentColor,
+                        BackgroundTransparency = 1,
+                        Position = UDim2.new(0.5, 0, 1, -2),
+                        Size = UDim2.new(0, 0, 0, 2),
+                        ZIndex = Button.ZIndex + 2,
+                        Parent = Button,
+                    })
+
+                table.insert(
+                    Library.Corners,
+                    New("UICorner", {
+                        CornerRadius = UDim.new(1, 0),
+                        Parent = Underline,
+                    })
+                )
+
+                local Entry = {
+                    Key = item.Key,
+                    Text = item.Text,
+                    AccentColor = item.AccentColor,
+                    Button = Button,
+                    Stroke = Stroke,
+                    Underline = Underline,
+                    Glow = Glow,
+                    Hovering = false,
+                }
+
+                Button.MouseEnter:Connect(function()
+
+                    Entry.Hovering =
+                        true
+
+                    if Navigation.Value == Entry.Key then
+                        return
+                    end
+
+                    TweenService:Create(Button, Library.TweenInfo, {
+                        BackgroundTransparency = 0.20,
+                        TextTransparency = 0.16,
+                    }):Play()
+
+                    TweenService:Create(Stroke, Library.TweenInfo, {
+                        Transparency = 0.32,
+                    }):Play()
+                end)
+
+                Button.MouseLeave:Connect(function()
+
+                    Entry.Hovering =
+                        false
+
+                    Navigation:Display()
+                end)
+
+                Button.MouseButton1Click:Connect(function()
+
+                    Navigation:SetValue(
+                        Entry.Key
+                    )
+                end)
+
+                table.insert(
+                    Navigation.Buttons,
+                    Entry
+                )
+
+                Navigation.ButtonMap[Entry.Key] =
+                    Entry
+
+                return Entry
+            end
+
+            for _, item in ipairs(Items) do
+
+                createButton(
+                    item
+                )
+            end
+
+            function Navigation:Display()
+
+                for _, entry in ipairs(Navigation.Buttons) do
+
+                    applyButtonVisual(
+                        entry,
+                        entry.Key == Navigation.Value,
+                        entry.Hovering == true
+                    )
+                end
+            end
+
+            function Navigation:SetValue(value, silent)
+
+                value =
+                    tostring(value or "")
+
+                if isValidValue(value) ~= true then
+                    return false
+                end
+
+                Navigation.Value =
+                    value
+
+                Navigation:Display()
+
+                if silent ~= true
+                and type(Callback) == "function" then
+
+                    Library:SafeCallback(
+                        Callback,
+                        value,
+                        Navigation
+                    )
+                end
+
+                return true
+            end
+
+            function Navigation:GetValue()
+
+                return Navigation.Value
+            end
+
+            function Navigation:SetVisible(visible)
+
+                TopHolder.Visible =
+                    visible == true
+
+                Tab:RefreshSides()
+            end
+
+            function Navigation:Destroy()
+
+                if TopHolder then
+
+                    TopHolder:Destroy()
+                end
+
+                if Tab.TopBarHolder == TopHolder then
+
+                    Tab.TopBarHolder =
+                        nil
+
+                    Tab.TopBarHeight =
+                        0
+                end
+
+                Tab:RefreshSides()
+            end
+
+            Tab.TopBarHolder =
+                TopHolder
+
+            Tab.TopBar =
+                Navigation
+
+            Navigation:SetValue(
+                Default,
+                true
+            )
+
+            Tab:RefreshSides()
+
+            return Navigation
+        end
+
+
         function Tab:AddGroupbox(Info)
             local SideName =
                 Info.Side == 1
